@@ -47,6 +47,14 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
     const apiKey = req.body.apiKey;
     const strictness = req.body.strictness;
 
+    if (!apiKey || apiKey.trim() === "") {
+      return res
+        .status(400)
+        .json({
+          error: "Please add your Gemini API key in Settings before analyzing.",
+        });
+    }
+
     if (!roleId) {
       return res.status(400).json({
         error: "Please save the role draft before analyzing candidates.",
