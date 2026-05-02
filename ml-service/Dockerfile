@@ -9,6 +9,8 @@ WORKDIR /code
 COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
+RUN python -m spacy download en_core_web_sm
+
 # CRITICAL: Hugging Face requires a non-root user to run ML models
 RUN useradd -m -u 1000 user
 USER user
