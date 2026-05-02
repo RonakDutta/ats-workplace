@@ -39,7 +39,6 @@ const AuthView = () => {
       localStorage.setItem("ats_token", data.token);
       localStorage.setItem("ats_user", JSON.stringify(data.user));
       navigate("/new");
-      window.location.reload();
     } catch (error) {
       toast.error(error.response?.data?.error || "Authentication failed");
     } finally {

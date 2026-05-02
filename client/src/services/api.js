@@ -52,7 +52,13 @@ export const getRoleById = async (id) => {
   return response.data;
 };
 
-// 3. Updated! Now we send the roleId so the backend knows where to save the candidates
+// 3. Get all roles
+export const getAllRoles = async () => {
+  const response = await axios.get(`${API_BASE_URL}/roles`);
+  return response.data;
+};
+
+// 4. We send the roleId so the backend knows where to save the candidates
 export const analyzeCandidates = async (
   description,
   candidates,

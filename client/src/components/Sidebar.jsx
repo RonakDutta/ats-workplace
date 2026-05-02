@@ -12,7 +12,7 @@ import {
   Layers,
 } from "lucide-react";
 import axios from "axios";
-import { deleteRoleById } from "../services/api";
+import { getAllRoles, deleteRoleById } from "../services/api";
 
 const Sidebar = () => {
   const [savedRoles, setSavedRoles] = useState([]);
@@ -31,8 +31,8 @@ const Sidebar = () => {
     // 2. Fetch the roles (The axios interceptor we built will automatically attach the token!)
     const fetchRoles = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/roles");
-        setSavedRoles(response.data);
+        const response = await getAllRoles();
+        setSavedRoles(response);
       } catch (error) {
         console.error("Failed to fetch roles for sidebar", error);
       }
