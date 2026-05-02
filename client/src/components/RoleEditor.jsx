@@ -111,18 +111,18 @@ const RoleEditor = () => {
       return toast.error("Please Save Draft first to link candidates!");
     }
 
+    const apiKey = localStorage.getItem("gemini_api_key");
+
+    if (!apiKey)
+      return toast.error("Please add your Gemini API Key in Settings first!");
+
     setIsAnalyzing(true);
     const toastId = toast.loading(
       `Analyzing ${candidates.length} candidate(s)...`,
     );
 
     try {
-      const apiKey = localStorage.getItem("gemini_api_key");
       const strictness = localStorage.getItem("ml_strictness") || 50;
-
-      if (!apiKey)
-        return toast.error("Please add your Gemini API Key in Settings first!");
-
       const data = await analyzeCandidates(
         description,
         candidates,
