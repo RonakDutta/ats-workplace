@@ -25,7 +25,6 @@ import {
   AreaChart,
 } from "recharts";
 
-//  Custom Tooltip
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -43,7 +42,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-//  KPI Card
 const KpiCard = ({ icon, label, value, subtext, accent }) => {
   const accents = {
     blue: {
@@ -103,7 +101,6 @@ const KpiCard = ({ icon, label, value, subtext, accent }) => {
   );
 };
 
-//  Chart Card wrapper
 const ChartCard = ({ title, subtitle, children, className = "" }) => (
   <div
     className={`bg-white rounded-2xl ring-1 ring-zinc-100 shadow-sm p-6 ${className}`}
@@ -116,7 +113,6 @@ const ChartCard = ({ title, subtitle, children, className = "" }) => (
   </div>
 );
 
-//  Main Component
 const MetricsView = () => {
   const [metrics, setMetrics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -171,7 +167,6 @@ const MetricsView = () => {
   return (
     <div className="min-h-screen bg-zinc-50/60 p-6 md:p-10 overflow-y-auto">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="pt-12 lg:pt-0">
           <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
             System Metrics
@@ -181,7 +176,6 @@ const MetricsView = () => {
           </p>
         </div>
 
-        {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <KpiCard
             icon={<Users />}
@@ -210,15 +204,16 @@ const MetricsView = () => {
           />
         </div>
 
-        {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Skill Gap Bar Chart */}
           <ChartCard
             title="Market Skill Gap"
             subtitle="Most missing skills across all candidates"
             className="lg:col-span-2"
           >
-            <div style={{ height: 280 }}>
+            <div
+              style={{ height: 280 }}
+              className="[&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={metrics.skillGap}
@@ -252,13 +247,12 @@ const MetricsView = () => {
             </div>
           </ChartCard>
 
-          {/* Talent Distribution Donut */}
           <ChartCard
             title="Talent Distribution"
             subtitle="Score-based candidate tiers"
           >
             <div
-              className="relative flex items-center justify-center"
+              className="relative flex items-center justify-center [&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
               style={{ height: 180 }}
             >
               <ResponsiveContainer width="100%" height="100%">
@@ -282,7 +276,6 @@ const MetricsView = () => {
                   <Tooltip content={<CustomTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Centre label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-2xl font-black text-zinc-900">
                   {total}
@@ -291,7 +284,6 @@ const MetricsView = () => {
               </div>
             </div>
 
-            {/* Legend */}
             <div className="mt-4 space-y-2.5">
               {pieData.map((item) => {
                 const pct =
@@ -318,12 +310,14 @@ const MetricsView = () => {
           </ChartCard>
         </div>
 
-        {/* Processing Volume Area Chart */}
         <ChartCard
           title="Processing Volume"
           subtitle="Candidates analyzed over the last 7 days"
         >
-          <div style={{ height: 220 }}>
+          <div
+            style={{ height: 220 }}
+            className="[&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={metrics.volume}
