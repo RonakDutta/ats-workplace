@@ -50,56 +50,40 @@ const RoleEditor = () => {
         setResults(null);
         return;
       }
-
       setIsPageLoading(true);
-
       setResults(null);
-
-      // Only clear the dropzone if we didn't just come from the "Save Draft" button
-      if (!location.state?.preserveDropzone) {
-        setCandidates([]);
-      }
-
+      if (!location.state?.preserveDropzone) setCandidates([]);
       try {
         const data = await getRoleById(roleId);
         setTitle(data.role.title);
         setDescription(data.role.description);
-
-        if (data.candidates && data.candidates.length > 0) {
-          setResults(data.candidates);
-        }
+        if (data.candidates?.length > 0) setResults(data.candidates);
       } catch (error) {
         console.error("Error loading draft:", error);
       } finally {
         setIsPageLoading(false);
       }
     };
-
     loadSavedData();
   }, [roleId]);
 
   const handleSaveDraft = async () => {
-    if (!title || !description) {
+    if (!title || !description)
       return toast.error("Please add a title and description first!");
-    }
-
     setIsSaving(true);
-    // Create a loading toast that we will dismiss when done
     const toastId = toast.loading("Saving draft...");
-
     try {
       if (roleId) {
         await updateRoleDraft(roleId, title, description);
-        toast.success("Draft Updated Successfully!", { id: toastId });
+        toast.success("Draft Updated!", { id: toastId });
       } else {
         const savedRole = await saveRoleDraft(title, description);
         navigate(`/role/${savedRole.id}`, {
           state: { preserveDropzone: true },
         });
-        toast.success("New Draft Saved!", { id: toastId });
+        toast.success("Draft Saved!", { id: toastId });
       }
-    } catch (error) {
-      console.error("Error saving draft:", error);
+    } catch {
       toast.error("Failed to save draft.", { id: toastId });
     } finally {
       setIsSaving(false);
@@ -107,20 +91,14 @@ const RoleEditor = () => {
   };
 
   const handleRunAnalysis = async () => {
-    if (!roleId) {
-      return toast.error("Please Save Draft first to link candidates!");
-    }
-
+    if (!roleId) return toast.error("Please Save Draft first!");
     const apiKey = localStorage.getItem("gemini_api_key");
-
     if (!apiKey)
-      return toast.error("Please add your Gemini API Key in Settings first!");
-
+      return toast.error("Add your Gemini API Key in Settings first!");
     setIsAnalyzing(true);
     const toastId = toast.loading(
       `Analyzing ${candidates.length} candidate(s)...`,
     );
-
     try {
       const strictness = localStorage.getItem("ml_strictness") || 50;
       const data = await analyzeCandidates(
@@ -130,14 +108,10 @@ const RoleEditor = () => {
         apiKey,
         strictness,
       );
-
-      // Merge new results with existing ones
       setResults((prev) => (prev ? [...data, ...prev] : data));
       setCandidates([]);
-
       toast.success("Analysis Complete!", { id: toastId });
-    } catch (error) {
-      console.error("Upload failed:", error);
+    } catch {
       toast.error("Analysis failed. Check backend connection.", {
         id: toastId,
       });
@@ -146,11 +120,58 @@ const RoleEditor = () => {
     }
   };
 
+  const removeCandidate = (name) =>
+    setCandidates((prev) => prev.filter((f) => f.name !== name));
+
   return (
     <div className="min-h-screen bg-zinc-50/50">
-      {/* HEADER */}
-      <header className="sticky top-0 z-40 bg-white/75 backdrop-blur-xl border-b border-zinc-200/80 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
+      {/* ── HEADER ── */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-zinc-200/80 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+        {/* Mobile */}
+        <div className="lg:hidden px-4 py-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 shrink-0" />
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Untitled Role Profile"
+              className="flex-1 min-w-0 text-[1.6rem] font-extrabold text-zinc-900 placeholder-zinc-300 bg-transparent border-none focus:outline-none p-0 truncate"
+            />
+          </div>
+
+          {/* Row 2: buttons aligned under title */}
+          <div className="flex items-center gap-2 pl-15">
+            <button
+              onClick={handleSaveDraft}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-md text-xs font-semibold text-zinc-600 hover:bg-zinc-50 shadow-sm disabled:opacity-50 transition-all"
+            >
+              {isSaving ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Save className="w-3 h-3 text-zinc-400" />
+              )}
+              {isSaving ? "Saving…" : "Save"}
+            </button>
+
+            <button
+              onClick={handleRunAnalysis}
+              disabled={!description || candidates.length === 0 || isAnalyzing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold rounded-md hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
+            >
+              {isAnalyzing ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Sparkle className="w-3 h-3 text-emerald-400" />
+              )}
+              {isAnalyzing ? "Processing…" : "Run Engine"}
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop  */}
+        <div className="hidden lg:flex items-center justify-between gap-6 max-w-7xl mx-auto px-6 py-4">
           <input
             type="text"
             value={title}
@@ -158,7 +179,6 @@ const RoleEditor = () => {
             placeholder="Untitled Role Profile"
             className="flex-1 min-w-0 text-2xl md:text-3xl font-extrabold text-zinc-900 placeholder-zinc-300 bg-transparent border-none focus:outline-none focus:ring-0 p-0 truncate transition-colors hover:text-zinc-700 focus:text-zinc-900"
           />
-
           <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={handleSaveDraft}
@@ -195,8 +215,7 @@ const RoleEditor = () => {
       </header>
 
       {isPageLoading ? (
-        // THE LOADING SCREEN
-        <div className="max-w-7xl mx-auto px-6 py-32 flex flex-col items-center justify-center">
+        <div className="px-6 py-32 flex flex-col items-center justify-center">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
           <p className="text-zinc-500 font-medium animate-pulse">
             Loading workspace...
@@ -204,45 +223,42 @@ const RoleEditor = () => {
         </div>
       ) : (
         <>
-          {/* WORKSPACE */}
-          <main className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            {/* Left Column: Job Description */}
-            <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-xl p-8 shadow-sm flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-6 shrink-0">
-                <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center border border-zinc-200">
-                  <FileText className="w-5 h-5 text-zinc-500" />
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-8 items-stretch">
+            {/* Job Description */}
+            <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-xl p-5 sm:p-8 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6 shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-zinc-100 flex items-center justify-center border border-zinc-200">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
+                  <h2 className="text-base sm:text-xl font-bold text-zinc-900 tracking-tight">
                     Job Description
                   </h2>
-                  <p className="text-sm text-zinc-500 mt-0.5">
+                  <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
                     Define the core requirements for the ML model
                   </p>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col relative">
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={isAnalyzing}
-                  placeholder="Paste the target job description here..."
-                  className="flex-1 h-full w-full min-h-75 text-zinc-700 placeholder-zinc-400 bg-white border border-zinc-200 rounded-lg p-5 focus:outline-none focus:border-zinc-500 focus:ring-indigo-500/10 transition-all duration-300 resize-none text-base leading-relaxed shadow-inner disabled:opacity-50 disabled:bg-zinc-50 custom-scrollbar"
-                />
-              </div>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isAnalyzing}
+                placeholder="Paste the target job description here..."
+                className="flex-1 w-full min-h-48 sm:min-h-75 text-zinc-700 placeholder-zinc-400 bg-white border border-zinc-200 rounded-lg p-4 sm:p-5 focus:outline-none focus:border-zinc-500 transition-all resize-none text-sm sm:text-base leading-relaxed shadow-inner disabled:opacity-50 disabled:bg-zinc-50 custom-scrollbar"
+              />
             </div>
 
-            {/* Right Column: Candidates */}
-            <div className="bg-white border border-zinc-200 rounded-xl p-8 shadow-sm flex flex-col h-full">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center border border-zinc-200">
-                  <Paperclip className="w-5 h-5 text-zinc-500" />
+            {/* Applicant Intake */}
+            <div className="bg-white border border-zinc-200 rounded-xl p-5 sm:p-8 shadow-sm flex flex-col">
+              <div className="flex items-center gap-3 mb-4 sm:mb-6">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-zinc-100 flex items-center justify-center border border-zinc-200">
+                  <Paperclip className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-500" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
+                  <h2 className="text-base sm:text-xl font-bold text-zinc-900 tracking-tight">
                     Applicant Intake
                   </h2>
-                  <p className="text-sm text-zinc-500 mt-0.5">
+                  <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
                     {candidates.length} Profiles Selected
                   </p>
                 </div>
@@ -250,54 +266,54 @@ const RoleEditor = () => {
 
               <div
                 {...getRootProps()}
-                className={`px-6 py-10 border border-dashed rounded-lg transition-all duration-300 text-center flex-1 min-h-30 ${
+                className={`px-4 sm:px-6 py-8 sm:py-10 border border-dashed rounded-lg transition-all duration-300 text-center flex-1 min-h-28 ${
                   isAnalyzing
                     ? "opacity-50 pointer-events-none"
                     : "cursor-pointer"
-                } ${isDragActive ? "border-zinc-900 bg-zinc-950/5 scale-[1.02]" : "border-zinc-500 bg-white hover:border-zinc-700 hover:bg-zinc-50/50"}`}
+                } ${
+                  isDragActive
+                    ? "border-zinc-900 bg-zinc-950/5 scale-[1.02]"
+                    : "border-zinc-400 bg-white hover:border-zinc-700 hover:bg-zinc-50/50"
+                }`}
               >
                 <input {...getInputProps()} disabled={isAnalyzing} />
-                <div className="flex flex-col items-center justify-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-9 h-9 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center">
                     <Paperclip
-                      className={`w-5 h-5 transition-colors ${isDragActive ? "text-zinc-900" : "text-zinc-500"}`}
+                      className={`w-4 h-4 ${isDragActive ? "text-zinc-900" : "text-zinc-500"}`}
                     />
                   </div>
                   <p className="text-sm text-zinc-800 font-medium">
                     {isDragActive ? "Drop files now" : "Attach PDF profiles"}
                   </p>
-                  <p className="text-xs text-zinc-500 leading-normal max-w-45 mx-auto">
-                    Support for batch upload of anonymized or standard resumes
-                    (max 10MB)
+                  <p className="text-xs text-zinc-400 leading-normal max-w-xs mx-auto">
+                    Batch upload resumes · PDF only · max 10MB
                   </p>
                 </div>
               </div>
 
               {candidates.length > 0 && (
-                <div className="mt-8 flex flex-col gap-2.5 max-h-62.5 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="mt-5 flex flex-col gap-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                   <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1">
                     Candidate Batch
                   </h3>
                   {candidates.map((file) => (
                     <div
                       key={file.name}
-                      className="flex items-center justify-between gap-4 px-4 py-3 bg-white border border-zinc-200 rounded-md shadow-sm hover:border-zinc-300 group transition-colors"
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 bg-white border border-zinc-200 rounded-md shadow-sm hover:border-zinc-300 transition-colors"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
-                        <span className="text-sm text-zinc-700 font-medium truncate">
+                        <span className="text-xs text-zinc-700 font-medium truncate">
                           {file.name}
-                        </span>
-                        <span className="text-xs text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded shrink-0 border border-zinc-200">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
                         </span>
                       </div>
                       <button
                         onClick={() => removeCandidate(file.name)}
                         disabled={isAnalyzing}
-                        className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all disabled:hidden shrink-0"
+                        className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded shrink-0"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -306,7 +322,6 @@ const RoleEditor = () => {
             </div>
           </main>
 
-          {/* Render the extracted component here! */}
           <ResultsTable results={results} setResults={setResults} />
         </>
       )}

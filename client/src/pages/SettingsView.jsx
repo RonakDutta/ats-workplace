@@ -26,7 +26,7 @@ const SettingsView = () => {
     <div className="min-h-screen bg-zinc-50/50 p-6 md:p-10">
       <div className="max-w-6xl mx-auto">
         {/* HEADER */}
-        <div className="mb-8">
+        <div className="mb-8 pt-12 lg:pt-0">
           <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
             System Settings
           </h1>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -10,25 +10,27 @@ import {
   Trash2,
   LogOut,
   Layers,
+  Menu,
+  X,
 } from "lucide-react";
-import axios from "axios";
 import { getAllRoles, deleteRoleById } from "../services/api";
 
 const Sidebar = () => {
   const [savedRoles, setSavedRoles] = useState([]);
   const [user, setUser] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Load user data & fetch saved drafts
+  // Close drawer on route change
   useEffect(() => {
-    // 1. Grab the logged-in user's details from local storage
-    const savedUser = localStorage.getItem("ats_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    setMobileOpen(false);
+  }, [location.pathname]);
 
-    // 2. Fetch the roles (The axios interceptor we built will automatically attach the token!)
+  useEffect(() => {
+    const savedUser = localStorage.getItem("ats_user");
+    if (savedUser) setUser(JSON.parse(savedUser));
+
     const fetchRoles = async () => {
       try {
         const response = await getAllRoles();
@@ -41,14 +43,16 @@ const Sidebar = () => {
   }, [location]);
 
   const handleLogout = () => {
-    localStorage.removeItem("ats_token");
-    localStorage.removeItem("ats_user");
-    navigate("/auth");
-    toast.success("Logged out successfully");
+    if (window.confirm("Are you sure you want to logout?")) {
+      localStorage.removeItem("ats_token");
+      localStorage.removeItem("ats_user");
+      navigate("/auth");
+      toast.success("Logged out successfully");
+    }
   };
 
   const handleDeleteRole = async (e, roleId) => {
-    e.preventDefault(); // Prevents the NavLink from triggering
+    e.preventDefault();
     if (
       window.confirm("Delete this role and all its candidates permanently?")
     ) {
@@ -56,9 +60,7 @@ const Sidebar = () => {
       try {
         await deleteRoleById(roleId);
         setSavedRoles((prev) => prev.filter((role) => role.id !== roleId));
-        if (location.pathname === `/role/${roleId}`) {
-          navigate("/new");
-        }
+        if (location.pathname === `/role/${roleId}`) navigate("/new");
         toast.success("Workspace deleted", { id: toastId });
       } catch (error) {
         toast.error("Failed to delete role", { id: toastId });
@@ -73,8 +75,9 @@ const Sidebar = () => {
         : "text-zinc-600 hover:bg-zinc-200/40 hover:text-zinc-900 font-medium"
     }`;
 
-  return (
-    <aside className="w-64 h-screen bg-[#F9FAFB] border-r border-zinc-200 flex flex-col pt-6 pb-6 px-4 shrink-0 font-sans">
+  // Shared inner content
+  const SidebarContent = () => (
+    <>
       {/* Header */}
       <div className="flex items-center gap-3 px-1 mb-6">
         <div className="w-7 h-7 rounded-lg bg-zinc-900 text-white flex items-center justify-center shadow-sm">
@@ -85,21 +88,18 @@ const Sidebar = () => {
         </span>
       </div>
 
+      {/* User card */}
       <div className="flex items-center justify-between p-2 mb-6 bg-white border border-zinc-200 rounded-lg shadow-sm">
         <div className="flex items-center gap-2.5 overflow-hidden">
-          {/* User Initial Circle */}
           <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xs font-bold shrink-0">
             {user?.name?.charAt(0).toUpperCase() || "U"}
           </div>
-          {/* User Name */}
           <div className="flex flex-col">
             <span className="text-[14px] font-semibold text-zinc-700 truncate max-w-25">
               {user?.name || "User"}
             </span>
           </div>
         </div>
-
-        {/* Logout Button */}
         <button
           onClick={handleLogout}
           className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
@@ -109,7 +109,7 @@ const Sidebar = () => {
         </button>
       </div>
 
-      {/* Primary Action */}
+      {/* New role */}
       <div className="mb-6">
         <NavLink
           to="/new"
@@ -120,7 +120,7 @@ const Sidebar = () => {
         </NavLink>
       </div>
 
-      {/* Active Workspaces */}
+      {/* Roles list */}
       <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
         <div className="mb-8">
           <h3 className="px-3 text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
@@ -133,17 +133,15 @@ const Sidebar = () => {
               </p>
             ) : (
               savedRoles.map((role) => (
-                // 🌟 FIX: The wrapper div holds the 'group' class and the key!
                 <div key={role.id} className="relative group">
                   <NavLink to={`/role/${role.id}`} className={navLinkClasses}>
                     <FileText className="w-4 h-4 shrink-0 text-zinc-400" />
                     <span className="truncate pr-6">{role.title}</span>
                   </NavLink>
-
-                  {/* Delete button sits OVER the link, not inside it */}
                   <button
                     onClick={(e) => handleDeleteRole(e, role.id)}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-white rounded-md opacity-0 group-hover:opacity-100 transition-all  border border-transparent hover:border-zinc-200"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-white rounded-md transition-all border border-transparent hover:border-zinc-200
+                      opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                     title="Delete Role"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -154,7 +152,6 @@ const Sidebar = () => {
           </nav>
         </div>
 
-        {/* Database Links */}
         <div>
           <h3 className="px-3 text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
             Database
@@ -172,14 +169,57 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Bottom Settings */}
+      {/* Settings */}
       <div className="mt-auto pt-4 border-t border-zinc-200">
         <NavLink to="/settings" className={navLinkClasses}>
           <Settings className="w-4 h-4 text-zinc-400" />
           Settings & API
         </NavLink>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside className="hidden lg:flex w-64 h-screen bg-[#F9FAFB] border-r border-zinc-200 flex-col pt-6 pb-6 px-4 shrink-0 font-sans">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile  */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden opacity-90 fixed top-4 left-4 z-50 p-2 bg-white border border-zinc-200 rounded-lg shadow-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#F9FAFB] border-r border-zinc-200 flex flex-col pt-6 pb-6 px-4 font-sans transform transition-transform duration-300 ease-in-out ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Close button */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <SidebarContent />
+      </aside>
+    </>
   );
 };
 
