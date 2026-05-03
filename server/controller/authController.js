@@ -30,7 +30,7 @@ export const signup = async (req, res) => {
 
     // 4. Create a token and send it back
     const token = jwt.sign({ id: newUser.rows[0].id }, JWT_SECRET, {
-      expiresIn: "7d",
+      expiresIn: "1d",
     });
     res.status(201).json({ token, user: newUser.rows[0] });
   } catch (error) {
@@ -58,7 +58,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials." });
 
     // 3. Issue Token
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "1d" });
     res.status(200).json({
       token,
       user: { id: user.id, name: user.name, email: user.email },
