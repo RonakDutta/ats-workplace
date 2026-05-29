@@ -3,61 +3,23 @@ import spacy
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import fitz  # PyMuPDF
+import fitz 
 from sentence_transformers import SentenceTransformer, util
 import google.generativeai as genai
 import os
 
-# ==============================================================================
-# STARTUP & LIFESPAN
-# ------------------------------------------------------------------------------
-# FastAPI lets you define code that runs once when the server boots up, before
-# it starts accepting requests. We use this to load our heavy ML models — SpaCy
-# and Hugging Face — so they're ready in memory for every request.
-#
-# Why not just load them at the top of the file? You could, but using lifespan
-# gives FastAPI a chance to handle errors cleanly and keeps startup logic in
-# one place. The models are stored in app.state so any route can access them.
-# ==============================================================================
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --------------------------------------------------------------------------
-    # MODEL 1: SpaCy (the keyword/skill extractor)
-    # --------------------------------------------------------------------------
-    # This is our custom-trained NER model that knows how to find skill
-    # entities in text. We also attach an EntityRuler on top of it — think of
-    # the ruler as a hard-coded override list that guarantees specific words
-    # (like "react", "aws", "k8s") are ALWAYS tagged as SKILL, even if the
-    # neural model is uncertain.
-    # --------------------------------------------------------------------------
     print("Loading SpaCy NLP model...")
     try:
         nlp = spacy.load("./custom_ats_model")
 
-        # Add the ruler BEFORE the neural NER so our explicit rules take
-        # priority. If it already exists (e.g. from a previous hot reload),
-        # just grab the existing one instead of adding a duplicate.
         if "entity_ruler" not in nlp.pipe_names:
             ruler = nlp.add_pipe("entity_ruler", before="ner")
         else:
             ruler = nlp.get_pipe("entity_ruler")
 
-        # ------------------------------------------------------------------
-        # SKILL ALIAS MAP
-        # ------------------------------------------------------------------
-        # Resumes are messy. Someone might write "react.js", "ReactJS", or
-        # just "react" — they all mean the same thing. This dictionary maps
-        # every known variation (lowercased) to one clean canonical name.
-        #
-        # We do two things with this map:
-        #   1. Feed the KEYS into the EntityRuler so SpaCy can find them.
-        #   2. Use the VALUES to normalize whatever SpaCy finds into a
-        #      consistent label (e.g. always "React", never "reactjs").
-        #
-        # If you encounter a skill that's being missed, add it here first —
-        # that's usually faster than retraining the model.
-        # ------------------------------------------------------------------
+       
         SKILL_ALIASES = {
             # ── Frontend ──────────────────────────────────────────────────
             "react": "React", "react.js": "React", "reactjs": "React",
@@ -200,12 +162,9 @@ async def lifespan(app: FastAPI):
             "ios": "iOS",
         }
 
-        # Feed every alias KEY into the ruler as a pattern. SpaCy will then
-        # flag any of these strings as a SKILL entity during extraction.
         patterns = [{"label": "SKILL", "pattern": key} for key in SKILL_ALIASES.keys()]
         ruler.add_patterns(patterns)
 
-        # Store both on app.state so the route handler can reach them
         app.state.nlp = nlp
         app.state.skill_aliases = SKILL_ALIASES
         print("✅ SpaCy model ready.")
@@ -214,17 +173,6 @@ async def lifespan(app: FastAPI):
         print(f"❌ Failed to load SpaCy model: {e}")
         sys.exit(1)
 
-    # --------------------------------------------------------------------------
-    # MODEL 2: Sentence Transformers (the semantic similarity engine)
-    # --------------------------------------------------------------------------
-    # SpaCy is great at finding exact skill keywords, but it has no idea whether
-    # a resume "feels" relevant to a job description overall. That's what this
-    # model is for — it converts entire text blobs into vectors, and then we
-    # measure the cosine similarity between the JD vector and the resume vector.
-    #
-    # 'all-MiniLM-L6-v2' is a solid lightweight choice: fast to run, and good
-    # enough for sentence-level similarity tasks like this one.
-    # --------------------------------------------------------------------------
     print("Loading Hugging Face semantic model...")
     try:
         app.state.semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -233,16 +181,9 @@ async def lifespan(app: FastAPI):
         print(f"❌ Failed to load semantic model: {e}")
         sys.exit(1)
 
-    yield  # Everything above runs on startup; everything below runs on shutdown
-    # (Nothing to clean up for now, but this is where you'd close DB connections etc.)
-
-
-# ==============================================================================
-# APP INIT
-# ==============================================================================
+    yield
+  
 app = FastAPI(lifespan=lifespan)
-
-# Allow all origins for now — lock this down to your frontend URL before deploying
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -251,9 +192,7 @@ app.add_middleware(
 )
 
 
-# ==============================================================================
-# HELPERS
-# ==============================================================================
+
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     """
@@ -269,15 +208,14 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
         full_text = ""
 
         for page in doc:
-            # get_text("blocks") returns a list of tuples:
-            # (x0, y0, x1, y1, text, block_no, block_type)
+   
             blocks = page.get_text("blocks")
 
-            # Sort: primary key = vertical position (y0), secondary = horizontal (x0)
+      
             blocks.sort(key=lambda b: (b[1], b[0]))
 
             for block in blocks:
-                full_text += block[4] + "\n"  # index 4 is the actual text string
+                full_text += block[4] + "\n"  
 
         return full_text.strip()
 
@@ -309,16 +247,14 @@ def get_normalized_skills(text: str, nlp, skill_aliases: dict) -> set[str]:
     return skills
 
 
-# ==============================================================================
-# ROUTE: /api/match
-# ==============================================================================
+
 
 @app.post("/api/match")
 async def calculate_match(
     description: str = Form(...),
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    strictness: int = Form(50),  # 0 = pure semantic, 100 = pure keyword matching
+    strictness: int = Form(50), 
 ):
     """
     The main endpoint. Takes a job description + resume PDF and returns a
@@ -331,7 +267,7 @@ async def calculate_match(
     Gemini then writes a human-readable summary based on what was found.
     """
 
-    # Grab the models that were loaded at startup
+  
     nlp = app.state.nlp
     skill_aliases = app.state.skill_aliases
     semantic_model = app.state.semantic_model
@@ -342,13 +278,7 @@ async def calculate_match(
     if not resume_text or not description:
         raise HTTPException(status_code=400, detail="Could not read resume or job description is empty.")
 
-    # --------------------------------------------------------------------------
-    # ENGINE 1: SpaCy — hard keyword skill matching
-    # --------------------------------------------------------------------------
-    # We extract skills from both the JD and the resume, then compare.
-    # The score here is simply: what % of the JD's required skills does the
-    # candidate actually have?
-    # --------------------------------------------------------------------------
+    # spacy
     jd_skills = get_normalized_skills(description, nlp, skill_aliases)
     resume_skills = get_normalized_skills(resume_text, nlp, skill_aliases)
 
@@ -358,20 +288,7 @@ async def calculate_match(
     if jd_skills:
         skill_score = (len(matched_skills) / len(jd_skills)) * 100
     else:
-        # If the JD doesn't mention any trackable skills, don't penalize the
-        # candidate — just give full marks for this engine.
         skill_score = 100.0
-
-    # --------------------------------------------------------------------------
-    # ENGINE 2: Hugging Face — semantic / contextual similarity
-    # --------------------------------------------------------------------------
-    # Converts both texts into embedding vectors and measures cosine similarity.
-    # Raw cosine similarity for text blobs typically falls between 0.10–0.40,
-    # so we rescale that range to 0–100 to make it comparable to the skill score.
-    #
-    # Tweak MIN_RAW_SCORE / MAX_RAW_SCORE if your scores feel too harsh or too
-    # generous — these values were calibrated on a sample of real resumes.
-    # --------------------------------------------------------------------------
     jd_embedding = semantic_model.encode(description, convert_to_tensor=True)
     resume_embedding = semantic_model.encode(resume_text, convert_to_tensor=True)
     raw_similarity = util.cos_sim(jd_embedding, resume_embedding).item()
@@ -385,31 +302,12 @@ async def calculate_match(
         context_score = 100.0
     else:
         context_score = ((raw_similarity - MIN_RAW_SCORE) / (MAX_RAW_SCORE - MIN_RAW_SCORE)) * 100
-
-    # --------------------------------------------------------------------------
-    # BLEND: combine the two scores using the strictness slider
-    # --------------------------------------------------------------------------
-    # strictness=100 means "only care about exact keywords" (full SpaCy weight)
-    # strictness=0   means "only care about overall relevance" (full HF weight)
-    # strictness=50  is a balanced split, which is the default
-    # --------------------------------------------------------------------------
     keyword_weight = strictness / 100.0
     semantic_weight = 1.0 - keyword_weight
 
     final_score = round((skill_score * keyword_weight) + (context_score * semantic_weight))
     final_score = max(0, min(100, final_score))  # clamp to [0, 100] just in case
 
-    # --------------------------------------------------------------------------
-    # ENGINE 3: Gemini — human-readable summary
-    # --------------------------------------------------------------------------
-    # We pass Gemini the structured data from the two engines above and ask it
-    # to write a concise recruiter-style summary. The goal is just two sentences
-    # so the UI stays clean. If the API call fails for any reason, we fall back
-    # gracefully rather than failing the whole request.
-    #
-    # Skills are sorted before being passed in so the prompt is deterministic —
-    # sets have random ordering, which makes debugging harder.
-    # --------------------------------------------------------------------------
     summary_text = "AI summary unavailable."
     try:
         genai.configure(api_key=api_key)
@@ -431,15 +329,8 @@ async def calculate_match(
         summary_text = response.text.strip()
 
     except Exception as e:
-        # Log it server-side but don't crash the request
         print(f"Gemini API error: {e}")
 
-    # --------------------------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------------------------
-    # For all_candidate_skills we sort matched skills first so the most relevant
-    # ones always appear at the top — a plain set slice would be random every time.
-    # --------------------------------------------------------------------------
     sorted_candidate_skills = sorted(resume_skills, key=lambda s: s not in matched_skills)
 
     return {
@@ -447,14 +338,9 @@ async def calculate_match(
         "score": final_score,
         "matched_skills": sorted(matched_skills),
         "missing_skills": sorted(missing_skills),
-        "all_candidate_skills": sorted_candidate_skills[:8],  # top 8 for the UI badges
+        "all_candidate_skills": sorted_candidate_skills[:8], 
         "ai_summary": summary_text,
     }
-
-
-# ==============================================================================
-# ENTRY POINT
-# ==============================================================================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
