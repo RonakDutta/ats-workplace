@@ -12,7 +12,7 @@ import os
 async def lifespan(app: FastAPI):
     print("Loading SpaCy NLP model...")
     try:
-        nlp = spacy.load("./custom_ats_model")
+        nlp = spacy.load("en_core_web_sm")
 
         if "entity_ruler" not in nlp.pipe_names:
             ruler = nlp.add_pipe("entity_ruler", before="ner")
@@ -191,9 +191,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
-
 def extract_text_from_pdf(file_bytes: bytes) -> str:
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -217,17 +214,6 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
 
 
 def get_normalized_skills(text: str, nlp, skill_aliases: dict) -> set[str]:
-    """
-    Extract skills from text and normalize them to their canonical names.
-
-    We lowercase the input first because all our alias keys are lowercase.
-    SpaCy finds the raw matches, then we look each one up in the alias map
-    to get the clean name (e.g. "reactjs" → "React").
-
-    If a matched entity isn't in our alias map for some reason (shouldn't
-    happen with the ruler, but just in case), we title-case it as a fallback
-    rather than dropping it silently.
-    """
     doc = nlp(text.lower())
     skills = set()
 
@@ -238,9 +224,6 @@ def get_normalized_skills(text: str, nlp, skill_aliases: dict) -> set[str]:
 
     return skills
 
-
-
-
 @app.post("/api/match")
 async def calculate_match(
     description: str = Form(...),
@@ -248,17 +231,6 @@ async def calculate_match(
     api_key: str = Form(...),
     strictness: int = Form(50), 
 ):
-    """
-    The main endpoint. Takes a job description + resume PDF and returns a
-    match score, skill breakdown, and a short AI-written summary.
-
-    The final score is a weighted blend of two engines:
-      - SpaCy keyword score  (hard skill overlap, weighted by `strictness`)
-      - Hugging Face score   (semantic similarity, weighted by 1 - `strictness`)
-
-    Gemini then writes a human-readable summary based on what was found.
-    """
-
   
     nlp = app.state.nlp
     skill_aliases = app.state.skill_aliases
@@ -298,7 +270,7 @@ async def calculate_match(
     semantic_weight = 1.0 - keyword_weight
 
     final_score = round((skill_score * keyword_weight) + (context_score * semantic_weight))
-    final_score = max(0, min(100, final_score))  # clamp to [0, 100] just in case
+    final_score = max(0, min(100, final_score))  
 
     summary_text = "AI summary unavailable."
     try:
