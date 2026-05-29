@@ -195,14 +195,6 @@ app.add_middleware(
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
-    """
-    Pull all readable text out of a PDF, preserving a sensible reading order.
-
-    PDFs don't store text linearly — they store it as floating blocks on a
-    canvas. The default extraction order can be all over the place, especially
-    for multi-column layouts. Sorting blocks by (y, x) gives us a rough
-    top-to-bottom, left-to-right order that works well for most resumes.
-    """
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
         full_text = ""
