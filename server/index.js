@@ -14,6 +14,31 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const uploadDir = "uploads";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, "_")}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed!"), false);
+    }
+  },
+});
+
 app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
   try {
     const jobDescription = req.body.description;
@@ -23,9 +48,11 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
     const strictness = req.body.strictness;
 
     if (!apiKey || apiKey.trim() === "") {
-      return res.status(400).json({
-        error: "Please add your Gemini API key in Settings before analyzing.",
-      });
+      return res
+        .status(400)
+        .json({
+          error: "Please add your Gemini API key in Settings before analyzing.",
+        });
     }
 
     if (!roleId) {
@@ -60,6 +87,7 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
 
         const resultData = pythonResponse.data;
 
+        // 1. Save this specific candidate into PostgreSQL
         const insertQuery = `
           INSERT INTO candidates 
           (role_id, filename, file_path, score, matched_skills, missing_skills, all_candidate_skills, ai_summary) 
@@ -67,10 +95,11 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
           RETURNING *;
         `;
 
+        // Note: JSON.stringify converts our Javascript arrays into Postgres JSONB format
         const dbResult = await pool.query(insertQuery, [
           roleId,
           file.originalname,
-          file.path,
+          file.path, // We save the local uploads/ path so we can download it later!
           resultData.score,
           JSON.stringify(resultData.matched_skills || []),
           JSON.stringify(resultData.missing_skills || []),
@@ -78,6 +107,7 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
           resultData.ai_summary || "No summary generated.",
         ]);
 
+        // 2. Push the saved DB record to our React array
         analysisResults.push(dbResult.rows[0]);
       } catch (pythonError) {
         console.error(
@@ -86,9 +116,11 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
         );
       }
 
+      // Throttle to protect Gemini API
       await delay(4500);
     }
 
+    // Sort the final results from highest score to lowest
     analysisResults.sort((a, b) => b.score - a.score);
     res.status(200).json(analysisResults);
   } catch (error) {
