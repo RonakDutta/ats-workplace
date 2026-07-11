@@ -48,11 +48,9 @@ app.post("/api/analyze", upload.array("candidates", 20), async (req, res) => {
     const strictness = req.body.strictness;
 
     if (!apiKey || apiKey.trim() === "") {
-      return res
-        .status(400)
-        .json({
-          error: "Please add your Gemini API key in Settings before analyzing.",
-        });
+      return res.status(400).json({
+        error: "Please add your Gemini API key in Settings before analyzing.",
+      });
     }
 
     if (!roleId) {
