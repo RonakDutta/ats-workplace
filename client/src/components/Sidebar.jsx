@@ -1,226 +1,259 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  Plus,
+  BarChart3,
+  ChevronsLeft,
+  ChevronsRight,
   FileText,
-  Users,
+  Home,
+  MoreHorizontal,
+  Plus,
   Settings,
-  Database,
   Trash2,
-  LogOut,
-  Layers,
-  Menu,
+  Users,
   X,
 } from "lucide-react";
-import { getAllRoles, deleteRoleById } from "../services/api";
+import Logo, { LogoMark } from "./Logo";
+import Menu, { MenuItem } from "./ui/Menu";
+import Skeleton from "./ui/Skeleton";
+import { useConfirm } from "./ui/confirm-context";
+import { deleteRoleById, getAllRoles } from "../services/api";
+import { ROLES_CHANGED } from "../lib/session";
+import { cn } from "../lib/cn";
 
-const Sidebar = () => {
-  const [savedRoles, setSavedRoles] = useState([]);
-  const [user, setUser] = useState(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+const PRIMARY = [{ to: "/", label: "Overview", icon: Home, end: true }];
+
+const WORKPLACE = [
+  { to: "/candidates", label: "Talent pool", icon: Users },
+  { to: "/metrics", label: "Insights", icon: BarChart3 },
+  { to: "/settings", label: "Settings", icon: Settings },
+];
+
+// Navigation lives on the canvas, so the selected item is a raised white chip
+// rather than a darker fill: it reads as the sheet the content sits on.
+function navClasses({ isActive }, rail) {
+  return cn(
+    "group/link relative flex items-center h-9 rounded-sm text-[13.5px] font-medium",
+    "transition-colors duration-120 ease-out-soft",
+    rail ? "justify-center px-0 w-9 mx-auto" : "gap-2.5 px-2.5",
+    isActive
+      ? "bg-surface text-ink shadow-xs"
+      : "text-muted hover:bg-surface/70 hover:text-ink",
+  );
+}
+
+export default function Sidebar({
+  collapsed,
+  onToggleCollapsed,
+  onClose,
+  variant,
+}) {
+  const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
-  // Close drawer on route change
+  const isRail = collapsed && variant === "desktop";
+  const closeOnNav = variant === "mobile" ? onClose : undefined;
+
+  const loadRoles = useCallback(async () => {
+    try {
+      setRoles(await getAllRoles());
+    } catch (error) {
+      console.error("Failed to fetch roles for sidebar", error);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, []);
+
   useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+    loadRoles();
+    window.addEventListener(ROLES_CHANGED, loadRoles);
+    return () => window.removeEventListener(ROLES_CHANGED, loadRoles);
+  }, [loadRoles]);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem("ats_user");
-    if (savedUser) setUser(JSON.parse(savedUser));
+  const handleDeleteRole = async (role) => {
+    const ok = await confirm({
+      title: `Delete "${role.title}"?`,
+      description:
+        "This removes the role and every candidate analysed against it. It cannot be undone.",
+      confirmLabel: "Delete role",
+      destructive: true,
+    });
+    if (!ok) return;
 
-    const fetchRoles = async () => {
-      try {
-        const response = await getAllRoles();
-        setSavedRoles(response);
-      } catch (error) {
-        console.error("Failed to fetch roles for sidebar", error);
-      }
-    };
-    fetchRoles();
-  }, [location]);
-
-  const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
-      localStorage.removeItem("ats_token");
-      localStorage.removeItem("ats_user");
-      navigate("/auth");
-      toast.success("Logged out successfully");
+    const toastId = toast.loading("Deleting role");
+    try {
+      await deleteRoleById(role.id);
+      setRoles((prev) => prev.filter((item) => item.id !== role.id));
+      if (location.pathname === `/role/${role.id}`) navigate("/");
+      toast.success("Role deleted", { id: toastId });
+    } catch {
+      toast.error("Could not delete the role", { id: toastId });
     }
   };
 
-  const handleDeleteRole = async (e, roleId) => {
-    e.preventDefault();
-    if (
-      window.confirm("Delete this role and all its candidates permanently?")
-    ) {
-      const toastId = toast.loading("Deleting workspace...");
-      try {
-        await deleteRoleById(roleId);
-        setSavedRoles((prev) => prev.filter((role) => role.id !== roleId));
-        if (location.pathname === `/role/${roleId}`) navigate("/new");
-        toast.success("Workspace deleted", { id: toastId });
-      } catch (error) {
-        toast.error("Failed to delete role", { id: toastId });
-      }
-    }
-  };
-
-  const navLinkClasses = ({ isActive }) =>
-    `flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm ${
-      isActive
-        ? "bg-zinc-200/60 text-zinc-900 font-semibold"
-        : "text-zinc-600 hover:bg-zinc-200/40 hover:text-zinc-900 font-medium"
-    }`;
-
-  // Shared inner content
-  const SidebarContent = () => (
-    <>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-1 mb-6">
-        <div className="w-7 h-7 rounded-lg bg-zinc-900 text-white flex items-center justify-center shadow-sm">
-          <Layers className="w-4 h-4" />
-        </div>
-        <span className="font-bold text-zinc-900 text-lg tracking-tight">
-          ATS Workspace
-        </span>
-      </div>
-
-      {/* User card */}
-      <div className="flex items-center justify-between p-2 mb-6 bg-white border border-zinc-200 rounded-lg shadow-sm">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center text-xs font-bold shrink-0">
-            {user?.name?.charAt(0).toUpperCase() || "U"}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[14px] font-semibold text-zinc-700 truncate max-w-25">
-              {user?.name || "User"}
-            </span>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-          title="Sign out"
-        >
-          <LogOut className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* New role */}
-      <div className="mb-6">
-        <NavLink
-          to="/new"
-          className="flex items-center gap-2 px-3 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-all shadow-sm active:scale-[0.98]"
-        >
-          <Plus className="w-4 h-4" />
-          New Role Profile
-        </NavLink>
-      </div>
-
-      {/* Roles list */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
-        <div className="mb-8">
-          <h3 className="px-3 text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
-            Active Roles
-          </h3>
-          <nav className="flex flex-col gap-0.5">
-            {savedRoles.length === 0 ? (
-              <p className="px-3 text-xs text-zinc-400 italic mt-1">
-                No saved drafts yet.
-              </p>
-            ) : (
-              savedRoles.map((role) => (
-                <div key={role.id} className="relative group">
-                  <NavLink to={`/role/${role.id}`} className={navLinkClasses}>
-                    <FileText className="w-4 h-4 shrink-0 text-zinc-400" />
-                    <span className="truncate pr-6">{role.title}</span>
-                  </NavLink>
-                  <button
-                    onClick={(e) => handleDeleteRole(e, role.id)}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-white rounded-md transition-all border border-transparent hover:border-zinc-200
-                      opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                    title="Delete Role"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-          </nav>
-        </div>
-
-        <div>
-          <h3 className="px-3 text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
-            Database
-          </h3>
-          <nav className="flex flex-col gap-0.5">
-            <NavLink to="/candidates" className={navLinkClasses}>
-              <Users className="w-4 h-4 text-zinc-400" />
-              All Candidates
-            </NavLink>
-            <NavLink to="/metrics" className={navLinkClasses}>
-              <Database className="w-4 h-4 text-zinc-400" />
-              System Metrics
-            </NavLink>
-          </nav>
-        </div>
-      </div>
-
-      {/* Settings */}
-      <div className="mt-auto pt-4 border-t border-zinc-200">
-        <NavLink to="/settings" className={navLinkClasses}>
-          <Settings className="w-4 h-4 text-zinc-400" />
-          Settings & API
-        </NavLink>
-      </div>
-    </>
-  );
+  const pad = isRail ? "px-3" : "px-3.5";
 
   return (
-    <>
-      {/* Desktop */}
-      <aside className="hidden lg:flex w-64 h-screen bg-[#F9FAFB] border-r border-zinc-200 flex-col pt-6 pb-6 px-4 shrink-0 font-sans">
-        <SidebarContent />
-      </aside>
-
-      {/* Mobile  */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden opacity-90 fixed top-4 left-4 z-50 p-2 bg-white border border-zinc-200 rounded-lg shadow-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-        aria-label="Open menu"
+    <div className="flex flex-col h-full">
+      <div
+        className={cn(
+          "flex items-center h-15 shrink-0",
+          isRail ? "justify-center px-0" : cn("justify-between", pad),
+        )}
       >
-        <Menu className="w-5 h-5" />
-      </button>
+        {isRail ? <LogoMark /> : <Logo />}
+        {variant === "mobile" && (
+          <button
+            onClick={onClose}
+            aria-label="Close navigation"
+            className="size-8 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-surface transition-colors"
+          >
+            <X className="size-4.5" />
+          </button>
+        )}
+      </div>
 
-      {/* Mobile backdrop */}
-      {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile drawer */}
-      <aside
-        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#F9FAFB] border-r border-zinc-200 flex flex-col pt-6 pb-6 px-4 font-sans transform transition-transform duration-300 ease-in-out ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Close button */}
-        <button
-          onClick={() => setMobileOpen(false)}
-          className="absolute top-4 right-4 p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-md transition-colors"
+      <div className={cn("pb-3", pad)}>
+        <NavLink
+          to="/new"
+          onClick={closeOnNav}
+          title={isRail ? "New role" : undefined}
+          className={cn(
+            "flex items-center h-9.5 rounded-md bg-accent text-on-accent shadow-xs",
+            "text-[13.5px] font-medium transition-[background-color,transform] duration-150 ease-out-soft",
+            "hover:bg-accent-hover active:scale-[0.985]",
+            isRail ? "justify-center w-9 mx-auto" : "gap-2 px-3",
+          )}
         >
-          <X className="w-5 h-5" />
-        </button>
+          <Plus className="size-4 shrink-0" />
+          {!isRail && "New role"}
+        </NavLink>
+      </div>
 
-        <SidebarContent />
-      </aside>
-    </>
+      <nav className={cn("flex flex-col gap-px pb-4", pad)}>
+        {PRIMARY.map(({ to, label, icon: Icon, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            onClick={closeOnNav}
+            title={isRail ? label : undefined}
+            className={(state) => navClasses(state, isRail)}
+          >
+            <Icon className="size-4 shrink-0 text-faint" />
+            {!isRail && label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className={cn("flex-1 overflow-y-auto custom-scrollbar pb-4", pad)}>
+        {!isRail && (
+          <p className="px-2.5 pb-2 text-[11.5px] font-medium text-faint tracking-[0.04em]">
+            Roles
+          </p>
+        )}
+
+        <nav className="flex flex-col gap-px">
+          {loadingRoles ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton
+                key={index}
+                className={cn("h-9 rounded-sm", isRail && "w-9 mx-auto")}
+              />
+            ))
+          ) : roles.length === 0 ? (
+            !isRail && (
+              <p className="px-2.5 py-2 t-xs text-ghost">
+                Roles you create appear here.
+              </p>
+            )
+          ) : (
+            roles.map((role) => (
+              <div key={role.id} className="relative group">
+                <NavLink
+                  to={`/role/${role.id}`}
+                  onClick={closeOnNav}
+                  title={isRail ? role.title : undefined}
+                  className={(state) => navClasses(state, isRail)}
+                >
+                  <FileText className="size-4 shrink-0 text-faint" />
+                  {!isRail && (
+                    <span className="truncate pr-5">{role.title}</span>
+                  )}
+                </NavLink>
+
+                {!isRail && (
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <Menu
+                      width={176}
+                      trigger={(props) => (
+                        <button
+                          {...props}
+                          aria-label={`Options for ${role.title}`}
+                          className="size-6.5 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-line transition-colors"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                      )}
+                    >
+                      <MenuItem
+                        icon={Trash2}
+                        danger
+                        onClick={() => handleDeleteRole(role)}
+                      >
+                        Delete role
+                      </MenuItem>
+                    </Menu>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </nav>
+      </div>
+
+      <div className={cn("shrink-0 pt-2 pb-3", pad)}>
+        <nav className="flex flex-col gap-px">
+          {WORKPLACE.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={closeOnNav}
+              title={isRail ? label : undefined}
+              className={(state) => navClasses(state, isRail)}
+            >
+              <Icon className="size-4 shrink-0 text-faint" />
+              {!isRail && label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {variant === "desktop" && (
+          <button
+            onClick={onToggleCollapsed}
+            aria-label={isRail ? "Expand sidebar" : "Collapse sidebar"}
+            title={isRail ? "Expand sidebar" : "Collapse sidebar"}
+            className={cn(
+              "mt-px flex items-center h-9 rounded-sm text-[13.5px] font-medium",
+              "text-faint hover:bg-surface/70 hover:text-ink transition-colors duration-120",
+              isRail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5 w-full",
+            )}
+          >
+            {isRail ? (
+              <ChevronsRight className="size-4" />
+            ) : (
+              <>
+                <ChevronsLeft className="size-4" />
+                Collapse
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
   );
-};
-
-export default Sidebar;
+}

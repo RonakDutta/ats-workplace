@@ -85,6 +85,32 @@ export const analyzeCandidates = async (
   return response.data;
 };
 
+/**
+ * One resume per request. The endpoint processes a batch serially and only
+ * answers once the last file is done, so sending them individually is the only
+ * way to know how far along a run actually is, and it keeps one unreadable PDF
+ * from taking the rest of the batch down with it.
+ */
+export const analyzeOneCandidate = async (
+  description,
+  file,
+  roleId,
+  apiKey,
+  strictness,
+) => {
+  const formData = new FormData();
+  formData.append("description", description);
+  formData.append("roleId", roleId);
+  formData.append("apiKey", apiKey);
+  formData.append("strictness", strictness);
+  formData.append("candidates", file);
+
+  const response = await axios.post(`${API_BASE_URL}/analyze`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return Array.isArray(response.data) ? response.data : [];
+};
+
 // Fetch the master list of all candidates
 export const fetchAllCandidates = async () => {
   const response = await axios.get(`${API_BASE_URL}/roles/candidates/all`);

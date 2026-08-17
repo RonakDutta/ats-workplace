@@ -1,16 +1,495 @@
 @import "tailwindcss";
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 6px;
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------------------
+   Palette
+   One neutral ramp, one blue accent, status colours reserved for candidate
+   scoring. Chart colours are an ordinal ramp of the same blue so the charts and
+   the interface read as one system.
+   Light and dark are two selected sets, not a mechanical inversion.
+--------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --canvas: #f6f6f7;
+  --surface: #ffffff;
+  --sunken: #f2f2f4;
+  --overlay: #ffffff;
+
+  --line-soft: #efeff2;
+  --line: #e4e4e9;
+  --line-strong: #d3d3da;
+
+  --ink: #17171a;
+  --muted: #5a5a63;
+  --faint: #8b8b94;
+  --ghost: #b4b4bd;
+
+  /* Light runs on a graphite accent. Primary actions read as ink on paper
+     rather than as a coloured brand element. */
+  --accent: #1b1b1f;
+  --accent-hover: #000000;
+  --accent-soft: #f0f0f2;
+  --accent-line: #d5d5dc;
+  --on-accent: #ffffff;
+  --focus: rgba(27, 27, 31, 0.26);
+
+  /* Text-safe status colours, all at or above 4.5:1 on the light surface. */
+  --good: #0c7c43;
+  --good-soft: #e7f5ec;
+  --good-line: #c4e5d1;
+  --warn: #8a5a00;
+  --warn-soft: #fdf3e2;
+  --warn-line: #f2ddb6;
+  --bad: #b3271e;
+  --bad-soft: #fceded;
+  --bad-line: #f3cfcd;
+
+  /* Mark colours for dots and score rings. Amber cannot be both saturated and
+     text-contrast on white, so marks get their own step and the label beside
+     them carries the meaning. */
+  --good-mark: #12874a;
+  --warn-mark: #c98a12;
+  --bad-mark: #cc3a30;
+
+  /* Chart roles */
+  --chart-accent: #2a78d6;
+  --chart-tier-1: #1c5cab;
+  --chart-tier-2: #3987e5;
+  --chart-tier-3: #86b6ef;
+  --chart-grid: #ededf0;
+  --chart-axis: #8b8b94;
+
+  --scrim: rgba(17, 17, 20, 0.32);
+  --select-bg: #d9e7f9;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
+
+.dark {
+  color-scheme: dark;
+
+  --canvas: #0b0b0d;
+  --surface: #151517;
+  --sunken: #1b1b1f;
+  --overlay: #1a1a1e;
+
+  --line-soft: #202024;
+  --line: #292930;
+  --line-strong: #3a3a43;
+
+  --ink: #f5f5f7;
+  --muted: #a4a4ae;
+  --faint: #77777f;
+  --ghost: #55555c;
+
+  /* Ink is unusable as an accent on a dark surface, so dark takes the blue. */
+  --accent: #4c8ef0;
+  --accent-hover: #6aa2f4;
+  --accent-soft: rgba(76, 142, 240, 0.16);
+  --accent-line: rgba(76, 142, 240, 0.34);
+  --on-accent: #0b0b0d;
+  --focus: rgba(76, 142, 240, 0.42);
+
+  --good: #45c97a;
+  --good-soft: rgba(69, 201, 122, 0.14);
+  --good-line: rgba(69, 201, 122, 0.28);
+  --warn: #e8a33d;
+  --warn-soft: rgba(232, 163, 61, 0.14);
+  --warn-line: rgba(232, 163, 61, 0.28);
+  --bad: #ff6b60;
+  --bad-soft: rgba(255, 107, 96, 0.14);
+  --bad-line: rgba(255, 107, 96, 0.28);
+
+  --good-mark: #45c97a;
+  --warn-mark: #e8a33d;
+  --bad-mark: #ff6b60;
+
+  --chart-accent: #3987e5;
+  --chart-tier-1: #9ec5f4;
+  --chart-tier-2: #5598e7;
+  --chart-tier-3: #256abf;
+  --chart-grid: #232329;
+  --chart-axis: #77777f;
+
+  --scrim: rgba(0, 0, 0, 0.6);
+  --select-bg: rgba(57, 135, 229, 0.28);
+}
+
+@theme inline {
+  --font-sans:
+    "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-overlay: var(--overlay);
+
+  --color-line-soft: var(--line-soft);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-ghost: var(--ghost);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-good-line: var(--good-line);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-line: var(--warn-line);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-line: var(--bad-line);
+
+  --color-good-mark: var(--good-mark);
+  --color-warn-mark: var(--warn-mark);
+  --color-bad-mark: var(--bad-mark);
+
+  --color-scrim: var(--scrim);
+
+  /* Generous corner radii. Surfaces are grouped by shape and tone rather than
+     by drawing a box around everything. */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  /* Elevation is reserved for things that genuinely float. Resting surfaces
+     separate through tone, not shadow. */
+  --shadow-xs: 0 1px 2px rgba(16, 17, 20, 0.04);
+  --shadow-sm: 0 1px 2px rgba(16, 17, 20, 0.05);
+  --shadow-md: 0 4px 14px -4px rgba(16, 17, 20, 0.1);
+  --shadow-lg:
+    0 2px 6px -2px rgba(16, 17, 20, 0.06),
+    0 16px 40px -12px rgba(16, 17, 20, 0.2);
+
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    font-feature-settings:
+      "liga" 1,
+      "calt" 1;
+    letter-spacing: -0.006em;
+  }
+
+  ::selection {
+    background-color: var(--select-bg);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.021em;
+  }
+
+  /* Rings never come for free; every interactive element opts into the same
+     focus treatment through :focus-visible only. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* Numbers that sit in columns or on axes align by digit. Standalone display
+     figures keep proportional widths on purpose. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One type scale for the whole app. Sizes are set here rather than per
+     component so a heading is the same size wherever it appears, and the
+     document surfaces get a comfortable reading size instead of UI-chrome
+     sizing. */
+  .t-display {
+    font-size: clamp(1.625rem, 1.25rem + 1.4vw, 2.0625rem);
+    line-height: 1.14;
+    letter-spacing: -0.026em;
+    font-weight: 600;
+  }
+  .t-title {
+    font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.4375rem);
+    line-height: 1.24;
+    letter-spacing: -0.022em;
+    font-weight: 600;
+  }
+  .t-heading {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    letter-spacing: -0.016em;
+    font-weight: 600;
+  }
+  .t-body {
+    font-size: 0.9375rem;
+    line-height: 1.62;
+    letter-spacing: -0.008em;
+  }
+  .t-sm {
+    font-size: 0.84375rem;
+    line-height: 1.5;
+    letter-spacing: -0.004em;
+  }
+  .t-xs {
+    font-size: 0.78125rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+  }
+  .t-label {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  /* The light accent is ink, so a link needs the rule to read as a link. */
+  .link {
+    color: var(--accent);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    text-underline-offset: 3px;
+    transition: text-decoration-color 140ms var(--ease-out-soft);
+  }
+  .link:hover {
+    text-decoration-color: currentColor;
+  }
+
+  /* A document page: white surface, generous radius, no resting shadow. */
+  .doc-surface {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  /**
+   * Centering inside a scroll container.
+   *
+   * `justify-center` on an overflowing flex container pushes the first child
+   * past the scroll origin, so the top of the content becomes unreachable.
+   * This wrapper is at least as tall as the viewport and centres within that,
+   * so short content sits in the middle and tall content simply scrolls from
+   * the top.
+   */
+  .scroll-center {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--line-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ghost);
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--line-soft),
+      transparent
+    );
+    animation: shimmer 1.5s var(--ease-in-out-soft) infinite;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 160ms var(--ease-out-soft) both;
+  }
+  .animate-scale-in {
+    animation: scale-in 180ms var(--ease-out-soft) both;
+  }
+  .animate-rise {
+    animation: rise 220ms var(--ease-out-soft) both;
+  }
+}
+
+/* Once the control has opened its menu the hint is redundant, and leaving it up
+   means it pokes out from behind the panel. */
+.tip-root:has([aria-expanded="true"]) [role="tooltip"] {
+  opacity: 0;
+}
+
+/* Recharts draws a focus outline on its root svg on click. */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper *:focus {
+  outline: none !important;
+}
+
+/* Range input, restyled end to end so it stops looking like browser chrome. */
+.range-track {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
   background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #e4e4e7;
-  border-radius: 10px;
+.range-track::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0%,
+    var(--accent) var(--range-progress, 50%),
+    var(--line) var(--range-progress, 50%),
+    var(--line) 100%
+  );
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #a1a1aa;
+.range-track::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+}
+.range-track::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+.range-track::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-sm);
+  transition: transform 140ms var(--ease-out-soft);
+}
+.range-track::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-sm);
+}
+.range-track:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+.range-track:focus-visible {
+  outline: none;
+}
+.range-track:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px var(--focus);
+}
+.range-track:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px var(--focus);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

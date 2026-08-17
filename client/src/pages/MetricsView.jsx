@@ -1,225 +1,124 @@
-import React, { useState, useEffect } from "react";
-import { fetchSystemMetrics } from "../services/api";
+import React, { useEffect, useState } from "react";
 import {
-  Users,
-  Briefcase,
-  Award,
-  Zap,
-  Loader2,
-  TrendingUp,
-} from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  CartesianGrid,
   Area,
   AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
+import { BarChart3, PieChart as PieIcon, TrendingUp } from "lucide-react";
+import PageHeader, { Page } from "../components/PageHeader";
+import { Card, CardHeader } from "../components/ui/Card";
+import EmptyState from "../components/ui/EmptyState";
+import Skeleton from "../components/ui/Skeleton";
+import { fetchSystemMetrics } from "../services/api";
+import useChartTheme from "../lib/useChartTheme";
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-zinc-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl">
-        {label && <p className="text-zinc-400 mb-1">{label}</p>}
-        {payload.map((p, i) => (
-          <p key={i} className="font-semibold">
-            {p.name ? `${p.name}: ` : ""}
-            {p.value}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
+const AXIS_FONT_SIZE = 11;
 
-const KpiCard = ({ icon, label, value, subtext, accent }) => {
-  const accents = {
-    blue: {
-      ring: "ring-blue-100",
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-500",
-      bar: "bg-blue-400",
-    },
-    purple: {
-      ring: "ring-purple-100",
-      iconBg: "bg-purple-50",
-      iconColor: "text-purple-500",
-      bar: "bg-purple-400",
-    },
-    emerald: {
-      ring: "ring-emerald-100",
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-500",
-      bar: "bg-emerald-400",
-    },
-    amber: {
-      ring: "ring-amber-100",
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-500",
-      bar: "bg-amber-400",
-    },
-  };
-  const a = accents[accent] || accents.blue;
-
-  return (
-    <div
-      className={`relative bg-white rounded-2xl p-5 ring-1 ${a.ring} shadow-sm overflow-hidden group hover:shadow-md transition-shadow duration-200`}
-    >
-      <div
-        className={`absolute top-0 left-0 right-0 h-0.5 ${a.bar} opacity-60`}
-      />
-
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-2.5 rounded-xl ${a.iconBg} ${a.iconColor}`}>
-          {React.cloneElement(icon, { className: "w-5 h-5" })}
-        </div>
-        <TrendingUp className="w-4 h-4 text-zinc-300" />
-      </div>
-
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-1">
-        {label}
-      </p>
-      <div className="flex items-baseline gap-2">
-        <h3 className="text-3xl font-black text-zinc-900 leading-none">
-          {value ?? 0}
-        </h3>
-        {subtext && (
-          <span className="text-xs font-medium text-zinc-400">{subtext}</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const ChartCard = ({ title, subtitle, children, className = "" }) => (
-  <div
-    className={`bg-white rounded-2xl ring-1 ring-zinc-100 shadow-sm p-6 ${className}`}
-  >
-    <div className="mb-5">
-      <h2 className="text-xl font-bold text-zinc-900">{title}</h2>
-      {subtitle && <p className="text-xs text-zinc-400 mt-0.5">{subtitle}</p>}
-    </div>
-    {children}
-  </div>
-);
-
-const MetricsView = () => {
+export default function MetricsView() {
   const [metrics, setMetrics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const colors = useChartTheme();
 
   useEffect(() => {
-    const loadMetrics = async () => {
-      try {
-        const data = await fetchSystemMetrics();
-        setMetrics(data);
-      } catch (error) {
-        console.error("Failed to load metrics");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadMetrics();
+    fetchSystemMetrics()
+      .then(setMetrics)
+      .catch(() => console.error("Failed to load metrics"))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  if (isLoading) {
+  if (isLoading) return <MetricsSkeleton />;
+
+  if (!metrics) {
     return (
-      <div className="max-w-7xl h-screen mx-auto px-6 py-32 flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-        <p className="text-zinc-500 font-medium animate-pulse">
-          Loading metrics...
-        </p>
-      </div>
+      <Page>
+        <PageHeader title="Insights" />
+        <Card className="mt-8">
+          <EmptyState
+            icon={BarChart3}
+            title="Metrics are unavailable"
+            description="We could not reach the analytics endpoint. Try again in a moment."
+          />
+        </Card>
+      </Page>
     );
   }
 
-  if (!metrics) return null;
+  const strictness = localStorage.getItem("ml_strictness") ?? "50";
+  const skillGap = metrics.skillGap ?? [];
+  const volume = metrics.volume ?? [];
 
-  const pieData = [
+  // Ordered tiers, so the chart uses a single-hue ordinal ramp rather than a
+  // red/green pair that collapses under the most common colour-vision deficiency.
+  const tiers = [
     {
-      name: "Top Tier (>80%)",
-      value: Number(metrics.distribution.top_tier) || 0,
-      color: "#10b981",
+      name: "Strong match",
+      range: "80% and above",
+      value: Number(metrics.distribution?.top_tier) || 0,
+      color: colors.tier1,
     },
     {
-      name: "Good Fit (60–79%)",
-      value: Number(metrics.distribution.good_fit) || 0,
-      color: "#6366f1",
+      name: "Possible match",
+      range: "60 to 79%",
+      value: Number(metrics.distribution?.good_fit) || 0,
+      color: colors.tier2,
     },
     {
-      name: "Poor Fit (<60%)",
-      value: Number(metrics.distribution.poor_fit) || 0,
-      color: "#f43f5e",
+      name: "Weak match",
+      range: "below 60%",
+      value: Number(metrics.distribution?.poor_fit) || 0,
+      color: colors.tier3,
     },
   ];
-
-  const total = pieData.reduce((s, d) => s + d.value, 0);
+  const tierTotal = tiers.reduce((sum, tier) => sum + tier.value, 0);
 
   return (
-    <div className="min-h-screen bg-zinc-50/60 p-6 md:p-10 overflow-y-auto">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="pt-12 lg:pt-0">
-          <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
-            System Metrics
-          </h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Real-time pipeline analytics and AI engine health.
-          </p>
-        </div>
+    <Page>
+      <PageHeader
+        title="Insights"
+        description="How your pipeline is distributed and what the market keeps missing."
+      />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KpiCard
-            icon={<Users />}
-            label="Total Candidates"
-            value={metrics.kpis.total_candidates}
-            accent="blue"
-          />
-          <KpiCard
-            icon={<Briefcase />}
-            label="Active Roles"
-            value={metrics.kpis.total_roles}
-            accent="purple"
-          />
-          <KpiCard
-            icon={<Award />}
-            label="Avg Match Score"
-            value={`${metrics.kpis.avg_score}%`}
-            accent="emerald"
-          />
-          <KpiCard
-            icon={<Zap />}
-            label="API Health"
-            value="Stable"
-            subtext="Gemini 2.5"
-            accent="amber"
-          />
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-7">
+        <StatTile label="Candidates analysed" value={metrics.kpis?.total_candidates} />
+        <StatTile label="Active roles" value={metrics.kpis?.total_roles} />
+        <StatTile label="Average match" value={metrics.kpis?.avg_score} unit="%" />
+        <StatTile label="Engine strictness" value={strictness} unit="%" />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <ChartCard
-            title="Market Skill Gap"
-            subtitle="Most missing skills across all candidates"
-            className="lg:col-span-2"
-          >
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+        <Card className="lg:col-span-3">
+          <CardHeader
+            title="Most common skill gaps"
+            description="How often each skill was missing across every analysed resume."
+          />
+          {skillGap.length === 0 ? (
+            <EmptyState
+              icon={BarChart3}
+              title="No gaps recorded yet"
+              description="Analyse a batch of resumes and the skills they lack will rank here."
+            />
+          ) : (
             <div
-              style={{ height: 280 }}
-              className="[&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
+              className="px-4 pb-5"
+              // Sized to sit level with the distribution card beside it. Bars stay
+              // capped at 18px, so extra height becomes air rather than thicker marks.
+              style={{ height: Math.max(280, skillGap.length * 40) }}
             >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={metrics.skillGap}
+                  data={skillGap}
                   layout="vertical"
-                  margin={{ top: 0, right: 16, left: 8, bottom: 0 }}
-                  barCategoryGap="30%"
+                  margin={{ top: 4, right: 40, left: 4, bottom: 0 }}
                 >
                   <XAxis type="number" hide />
                   <YAxis
@@ -227,156 +126,226 @@ const MetricsView = () => {
                     type="category"
                     axisLine={false}
                     tickLine={false}
-                    width={90}
-                    tick={{ fill: "#71717a", fontSize: 12, fontWeight: 500 }}
+                    width={112}
+                    tick={{ fill: colors.axis, fontSize: 12 }}
                   />
                   <Tooltip
-                    content={<CustomTooltip />}
-                    cursor={{ fill: "#f4f4f5", radius: 6 }}
+                    content={<ChartTooltip unit="resumes" />}
+                    cursor={{ fill: colors.grid }}
                   />
-                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
-                    {metrics.skillGap.map((_, i) => {
-                      const opacity = 1 - (i / metrics.skillGap.length) * 0.25;
-                      return (
-                        <Cell key={i} fill={`rgba(99,102,241,${opacity})`} />
-                      );
-                    })}
+                  <Bar
+                    dataKey="count"
+                    name="Missing in"
+                    fill={colors.accent}
+                    radius={[0, 4, 4, 0]}
+                    barSize={18}
+                    isAnimationActive={false}
+                  >
+                    <LabelList
+                      dataKey="count"
+                      position="right"
+                      offset={10}
+                      fill={colors.muted}
+                      fontSize={12}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </ChartCard>
+          )}
+        </Card>
 
-          <ChartCard
-            title="Talent Distribution"
-            subtitle="Score-based candidate tiers"
-          >
-            <div
-              className="relative flex items-center justify-center [&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
-              style={{ height: 180 }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={58}
-                    outerRadius={82}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="none"
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    {pieData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-black text-zinc-900">
-                  {total}
-                </span>
-                <span className="text-xs text-zinc-400 font-medium">total</span>
+        <Card className="lg:col-span-2">
+          <CardHeader
+            title="Score distribution"
+            description="Where your analysed candidates land."
+          />
+          {tierTotal === 0 ? (
+            <EmptyState
+              icon={PieIcon}
+              title="Nothing to distribute"
+              description="Scores appear here once the engine has run at least once."
+            />
+          ) : (
+            <div className="px-6 pb-6">
+              <div className="relative h-45">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={tiers}
+                      dataKey="value"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={58}
+                      outerRadius={84}
+                      startAngle={90}
+                      endAngle={-270}
+                      paddingAngle={1.5}
+                      stroke={colors.surface}
+                      strokeWidth={2}
+                      isAnimationActive={false}
+                    >
+                      {tiers.map((tier) => (
+                        <Cell key={tier.name} fill={tier.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip unit="candidates" />} />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[32px] font-semibold leading-none tracking-[-0.026em]">
+                    {tierTotal}
+                  </span>
+                  <span className="t-xs text-faint mt-2">candidates</span>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-4 space-y-2.5">
-              {pieData.map((item) => {
-                const pct =
-                  total > 0 ? Math.round((item.value / total) * 100) : 0;
-                return (
-                  <div key={item.name} className="flex items-center gap-2.5">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
+              <ul className="mt-5 space-y-2.5">
+                {tiers.map((tier) => (
+                  <li key={tier.name} className="flex items-center gap-2.5">
+                    <span
+                      className="size-2.5 rounded-[3px] shrink-0"
+                      style={{ backgroundColor: tier.color }}
+                      aria-hidden="true"
                     />
-                    <span className="text-xs text-zinc-500 flex-1 font-medium">
-                      {item.name}
+                    <span className="t-sm text-muted flex-1 min-w-0 truncate">
+                      {tier.name}
+                      <span className="text-ghost"> {tier.range}</span>
                     </span>
-                    <span className="text-xs font-bold text-zinc-900">
-                      {item.value}
+                    <span className="t-sm font-medium tnum shrink-0">
+                      {tier.value}
                     </span>
-                    <span className="text-xs text-zinc-400 w-8 text-right">
-                      {pct}%
+                    <span className="t-xs text-ghost tnum w-9 text-right shrink-0">
+                      {Math.round((tier.value / tierTotal) * 100)}%
                     </span>
-                  </div>
-                );
-              })}
+                  </li>
+                ))}
+              </ul>
             </div>
-          </ChartCard>
-        </div>
+          )}
+        </Card>
+      </div>
 
-        <ChartCard
-          title="Processing Volume"
-          subtitle="Candidates analyzed over the last 7 days"
-        >
-          <div
-            style={{ height: 220 }}
-            className="[&_.recharts-wrapper]:outline-none! [&_.recharts-surface]:outline-none!"
-          >
+      <Card className="mt-4">
+        <CardHeader
+          title="Processing volume"
+          description="Resumes analysed over the last seven days."
+        />
+        {volume.length === 0 ? (
+          <EmptyState
+            icon={TrendingUp}
+            title="No activity yet"
+            description="Daily throughput appears once resumes start coming through."
+          />
+        ) : (
+          <div className="px-4 pb-5 h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={metrics.volume}
-                margin={{ top: 4, right: 16, left: -16, bottom: 0 }}
+                data={volume}
+                margin={{ top: 8, right: 12, left: -14, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.18} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  <linearGradient id="volumeWash" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={colors.accent} stopOpacity={0.12} />
+                    <stop offset="100%" stopColor={colors.accent} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
-                  strokeDasharray="3 3"
                   vertical={false}
-                  stroke="#f0f0f0"
+                  stroke={colors.grid}
+                  strokeWidth={1}
                 />
                 <XAxis
                   dataKey="date"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
                   dy={8}
+                  tick={{ fill: colors.axis, fontSize: AXIS_FONT_SIZE }}
                 />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fill: "#a1a1aa", fontSize: 11 }}
                   allowDecimals={false}
+                  width={44}
+                  tick={{ fill: colors.axis, fontSize: AXIS_FONT_SIZE }}
                 />
                 <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ stroke: "#e4e4e7", strokeWidth: 1.5 }}
+                  content={<ChartTooltip unit="resumes" />}
+                  cursor={{ stroke: colors.grid, strokeWidth: 1 }}
                 />
                 <Area
                   type="monotone"
                   dataKey="count"
-                  stroke="#10b981"
-                  strokeWidth={2.5}
-                  fill="url(#areaGradient)"
-                  dot={{
-                    r: 3.5,
-                    fill: "#10b981",
-                    strokeWidth: 2,
-                    stroke: "#fff",
-                  }}
+                  name="Analysed"
+                  stroke={colors.accent}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="url(#volumeWash)"
+                  dot={false}
                   activeDot={{
-                    r: 5,
-                    fill: "#10b981",
-                    stroke: "#fff",
+                    r: 4,
+                    fill: colors.accent,
+                    stroke: colors.surface,
                     strokeWidth: 2,
                   }}
+                  isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </ChartCard>
-      </div>
+        )}
+      </Card>
+    </Page>
+  );
+}
+
+function StatTile({ label, value, unit }) {
+  return (
+    <Card className="px-6 py-5 rounded-lg">
+      <p className="t-sm text-faint">{label}</p>
+      <p className="text-[30px] font-semibold leading-none mt-3 tracking-[-0.026em]">
+        {value ?? 0}
+        {unit && <span className="text-[18px] text-faint ml-0.5">{unit}</span>}
+      </p>
+    </Card>
+  );
+}
+
+function ChartTooltip({ active, payload, label, unit }) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0];
+  const name = label ?? point.payload?.name ?? point.name;
+
+  return (
+    <div className="bg-overlay border border-line rounded-md shadow-lg px-3 py-2">
+      <p className="t-xs text-faint">{name}</p>
+      <p className="t-sm font-medium text-ink mt-0.5 tnum">
+        {point.value} {unit}
+      </p>
     </div>
   );
-};
+}
 
-export default MetricsView;
+function MetricsSkeleton() {
+  return (
+    <Page>
+      <Skeleton className="h-9 w-52 rounded-md" />
+      <Skeleton className="h-4 w-80 rounded-sm mt-4" />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-7">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-25 rounded-lg" />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+        <Skeleton className="lg:col-span-3 h-84 rounded-lg" />
+        <Skeleton className="lg:col-span-2 h-84 rounded-lg" />
+      </div>
+
+      <Skeleton className="h-72 rounded-lg mt-5" />
+    </Page>
+  );
+}

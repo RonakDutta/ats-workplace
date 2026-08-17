@@ -1,225 +1,246 @@
-import React, { useState, useEffect } from "react";
-import { Search, FileText, Briefcase, Award, Loader2 } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Search, Users, X } from "lucide-react";
+import PageHeader, { Page } from "../components/PageHeader";
+import { Card } from "../components/ui/Card";
+import EmptyState from "../components/ui/EmptyState";
+import Skeleton from "../components/ui/Skeleton";
+import { Input } from "../components/ui/Field";
 import { fetchAllCandidates } from "../services/api";
+import { TONE_CLASSES, asSkillList, tierFor } from "../lib/score";
+import { cn } from "../lib/cn";
 
-const CandidatesView = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+export default function CandidatesView() {
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [candidates, setCandidates] = useState([]);
 
   useEffect(() => {
-    const loadCandidates = async () => {
-      try {
-        const data = await fetchAllCandidates();
-        setCandidates(data);
-      } catch (error) {
-        console.error("Failed to load metrics");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadCandidates();
+    fetchAllCandidates()
+      .then(setCandidates)
+      .catch(() => console.error("Failed to load candidates"))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const filteredCandidates = candidates.filter((c) => {
-    const query = searchQuery.toLowerCase();
-    const nameMatch = c.filename.toLowerCase().includes(query);
-    const roleMatch = c.role_title.toLowerCase().includes(query);
-
-    const skillsMatch =
-      c.matched_skills &&
-      c.matched_skills.some((skill) => skill.toLowerCase().includes(query));
-
-    return nameMatch || roleMatch || skillsMatch;
-  });
-
-  if (isLoading) {
-    return (
-      <div className="max-w-7xl h-screen mx-auto px-6 py-32 flex flex-col items-center justify-center">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-        <p className="text-zinc-500 font-medium animate-pulse">
-          Loading all candidates...
-        </p>
-      </div>
-    );
-  }
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return candidates;
+    return candidates.filter((candidate) => {
+      const haystack = [
+        candidate.filename,
+        candidate.role_title,
+        ...asSkillList(candidate.matched_skills),
+      ];
+      return haystack.some((value) =>
+        String(value ?? "").toLowerCase().includes(term),
+      );
+    });
+  }, [candidates, query]);
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 p-4 md:p-10">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6 mb-6 md:mb-8">
-          <div className="pt-12 lg:pt-0">
-            <h1 className="text-3xl md:text-3xl font-extrabold text-zinc-900 tracking-tight">
-              Talent Pool
-            </h1>
-            <p className="text-sm text-zinc-500 mt-1">
-              Search across all {candidates.length} processed resumes.
-            </p>
-          </div>
-
-          <div className="relative w-full md:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search by name, role, or skill..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+    <Page>
+      <PageHeader
+        title="Talent pool"
+        description={
+          isLoading
+            ? "Loading every resume you have analysed."
+            : `Every resume you have analysed, across ${candidates.length} record${candidates.length === 1 ? "" : "s"}.`
+        }
+        actions={
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-faint pointer-events-none" />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search name, role or skill"
+              aria-label="Search candidates"
+              className="pl-9.5 pr-9"
             />
-          </div>
-        </div>
-
-        <div className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
-          {/* MOBILE VIEW  */}
-          <div className="md:hidden flex flex-col divide-y divide-zinc-200">
-            {filteredCandidates.length === 0 ? (
-              <div className="px-6 py-12 text-center text-zinc-500 text-sm">
-                No candidates found
-                {searchQuery.length === 0 ? "" : ` matching "${searchQuery}"`}
-              </div>
-            ) : (
-              filteredCandidates.map((candidate) => (
-                <div
-                  key={candidate.id}
-                  className="p-5 flex flex-col gap-4 hover:bg-zinc-50 transition-colors"
-                >
-                  <div className="border-b pb-4 border-zinc-100 flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-2 bg-zinc-100 rounded-md border border-zinc-200 shrink-0">
-                        <FileText className="w-4 h-4 text-zinc-500" />
-                      </div>
-                      <span className="font-medium text-zinc-900 truncate">
-                        {candidate.filename}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0 bg-zinc-50 px-2 py-1 rounded-md border border-zinc-100">
-                      <Award
-                        className={`w-3.5 h-3.5 ${candidate.score > 75 ? "text-emerald-500" : "text-amber-500"}`}
-                      />
-                      <span className="font-bold text-zinc-900 text-sm">
-                        {candidate.score}%
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-zinc-600 text-sm">
-                    <Briefcase className="w-4 h-4 text-zinc-400 shrink-0" />
-                    <span className="truncate">{candidate.role_title}</span>
-                  </div>
-
-                  <div className="flex gap-1.5 flex-wrap">
-                    {candidate.matched_skills?.slice(0, 4).map((skill, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[11px] font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                    {candidate.matched_skills?.length > 4 && (
-                      <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded text-[11px] font-medium">
-                        +{candidate.matched_skills.length - 4}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 size-7 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-sunken transition-colors"
+              >
+                <X className="size-3.5" />
+              </button>
             )}
           </div>
+        }
+      />
 
-          {/* DESKTOP VIEW  */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-zinc-50 border-b border-zinc-200">
-                <tr>
-                  <th className="px-6 py-4 font-semibold text-zinc-500">
-                    Candidate
-                  </th>
-                  <th className="px-6 py-4 font-semibold text-zinc-500">
-                    Applied Role
-                  </th>
-                  <th className="px-6 py-4 font-semibold text-zinc-500">
-                    Match Score
-                  </th>
-                  <th className="px-6 py-4 font-semibold text-zinc-500">
-                    Top Skills
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {filteredCandidates.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="px-6 py-12 text-center text-zinc-500"
-                    >
-                      No candidates found
-                      {searchQuery.length === 0
-                        ? ""
-                        : ` matching "${searchQuery}"`}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredCandidates.map((candidate) => (
-                    <tr
-                      key={candidate.id}
-                      className="hover:bg-zinc-50 transition-colors group"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-zinc-100 rounded-md border border-zinc-200">
-                            <FileText className="w-4 h-4 text-zinc-500" />
-                          </div>
-                          <span className="font-medium text-zinc-900">
-                            {candidate.filename}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-zinc-600">
-                          <Briefcase className="w-4 h-4 text-zinc-400" />
-                          {candidate.role_title}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Award
-                            className={`w-4 h-4 ${candidate.score > 75 ? "text-emerald-500" : "text-amber-500"}`}
-                          />
-                          <span className="font-bold text-zinc-900">
-                            {candidate.score}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-1.5 flex-wrap max-w-xs">
-                          {candidate.matched_skills
-                            ?.slice(0, 3)
-                            .map((skill, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-xs font-medium"
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                          {candidate.matched_skills?.length > 3 && (
-                            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 border border-zinc-200 rounded text-xs font-medium">
-                              +{candidate.matched_skills.length - 3}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+      <Card className="mt-7 overflow-hidden">
+        {isLoading ? (
+          <TableSkeleton />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title={query ? "No matches" : "No candidates yet"}
+            description={
+              query
+                ? `Nothing matched "${query}". Try a different name, role or skill.`
+                : "Run the engine on a role and analysed resumes will collect here."
+            }
+          />
+        ) : (
+          <>
+            <CandidateTable rows={filtered} />
+            <CandidateList rows={filtered} />
+          </>
+        )}
+      </Card>
+
+      {!isLoading && filtered.length > 0 && query && (
+        <p className="t-xs text-faint mt-3 tnum">
+          {filtered.length} of {candidates.length} shown
+        </p>
+      )}
+    </Page>
+  );
+}
+
+function CandidateTable({ rows }) {
+  return (
+    <div className="hidden md:block overflow-x-auto custom-scrollbar">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-line">
+            {["Candidate", "Role", "Score", "Matched skills"].map((label) => (
+              <th
+                key={label}
+                scope="col"
+                className={cn(
+                  "px-6 h-12 t-xs font-medium text-faint",
+                  label === "Score" && "text-right",
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+              >
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {rows.map((candidate) => {
+            const tier = tierFor(candidate.score);
+            return (
+              <tr
+                key={candidate.id}
+                className="hover:bg-line-soft transition-colors duration-100"
+              >
+                <td className="px-6 py-4">
+                  <span className="t-body font-medium block truncate max-w-70">
+                    {candidate.filename}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="t-sm text-muted block truncate max-w-56">
+                    {candidate.role_title}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-2">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        TONE_CLASSES[tier.tone].dot,
+                      )}
+                      aria-hidden="true"
+                    />
+                    <span className="t-body font-medium tnum">
+                      {candidate.score}%
+                    </span>
+                    <span className="sr-only">{tier.label}</span>
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <SkillList skills={candidate.matched_skills} limit={3} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
-};
+}
 
-export default CandidatesView;
+function CandidateList({ rows }) {
+  return (
+    <ul className="md:hidden divide-y divide-line">
+      {rows.map((candidate) => {
+        const tier = tierFor(candidate.score);
+        return (
+          <li key={candidate.id} className="px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="t-body font-medium truncate">
+                  {candidate.filename}
+                </p>
+                <p className="t-xs text-faint truncate mt-0.5">
+                  {candidate.role_title}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className={cn(
+                    "size-1.5 rounded-full",
+                    TONE_CLASSES[tier.tone].dot,
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="t-body font-medium tnum">
+                  {candidate.score}%
+                </span>
+              </div>
+            </div>
+            <div className="mt-3">
+              <SkillList skills={candidate.matched_skills} limit={4} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function SkillList({ skills, limit }) {
+  const list = asSkillList(skills);
+  if (list.length === 0) {
+    return <span className="t-xs text-ghost">None recorded</span>;
+  }
+  const shown = list.slice(0, limit);
+  const rest = list.length - shown.length;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {shown.map((skill) => (
+        <span
+          key={skill}
+          className="inline-flex items-center h-6 px-2 rounded-xs bg-sunken border border-line-soft text-[12.5px] text-muted"
+        >
+          {skill}
+        </span>
+      ))}
+      {rest > 0 && (
+        <span className="inline-flex items-center h-6 px-2 text-[12px] text-ghost tnum">
+          +{rest}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="p-5 space-y-3">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="flex items-center gap-4">
+          <Skeleton className="h-4 flex-1 max-w-56" />
+          <Skeleton className="h-4 flex-1 max-w-40" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-6 flex-1 max-w-44 rounded-xs" />
+        </div>
+      ))}
+    </div>
+  );
+}
