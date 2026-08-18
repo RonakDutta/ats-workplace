@@ -134,7 +134,7 @@ export default function Sidebar({
         </NavLink>
       </div>
 
-      <nav className={cn("flex flex-col gap-px pb-4", pad)}>
+      <nav className={cn("flex flex-col gap-1 pb-4", pad)}>
         {PRIMARY.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -157,7 +157,7 @@ export default function Sidebar({
           </p>
         )}
 
-        <nav className="flex flex-col gap-px">
+        <nav className="flex flex-col gap-1">
           {loadingRoles ? (
             Array.from({ length: 3 }).map((_, index) => (
               <Skeleton
@@ -217,7 +217,7 @@ export default function Sidebar({
       </div>
 
       <div className={cn("shrink-0 pt-2 pb-3", pad)}>
-        <nav className="flex flex-col gap-px">
+        <nav className="flex flex-col gap-1">
           {WORKPLACE.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -238,7 +238,7 @@ export default function Sidebar({
             aria-label={isRail ? "Expand sidebar" : "Collapse sidebar"}
             title={isRail ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
-              "mt-px flex items-center h-9 rounded-sm text-[13.5px] font-medium",
+              "mt-1 flex items-center h-9 rounded-sm text-[13.5px] font-medium",
               "text-faint hover:bg-surface/70 hover:text-ink transition-colors duration-120",
               isRail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5 w-full",
             )}
