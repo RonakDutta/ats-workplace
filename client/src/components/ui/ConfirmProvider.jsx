@@ -36,8 +36,8 @@ export function ConfirmProvider({ children }) {
         labelledBy="confirm-title"
         describedBy={request?.description ? "confirm-description" : undefined}
       >
-        <div className="px-5 pt-5 pb-5">
-          <h2 id="confirm-title" className="t-heading text-ink">
+        <div className="px-6 pt-6 pb-2">
+          <h2 id="confirm-title" className="text-[17px] font-semibold text-ink">
             {request?.title}
           </h2>
           {request?.description && (
@@ -46,7 +46,7 @@ export function ConfirmProvider({ children }) {
             </p>
           )}
         </div>
-        <div className="flex justify-end gap-2 px-5 py-3 bg-sunken border-t border-line rounded-b-md">
+        <div className="flex justify-end gap-2 px-6 pt-4 pb-6">
           <Button variant="secondary" onClick={() => settle(false)}>
             {request?.cancelLabel}
           </Button>

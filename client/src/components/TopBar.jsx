@@ -17,25 +17,25 @@ export default function TopBar({ onOpenNav }) {
 
   return (
     // Sits above page level sticky bars so its menus are never painted over.
-    <header className="relative z-50 h-12 shrink-0 flex items-center gap-2 px-3 sm:px-4 border-b border-line bg-surface">
+    <header className="relative z-50 h-14 shrink-0 flex items-center gap-2 px-3 sm:px-4 border-b border-line bg-surface">
       <button
         onClick={onOpenNav}
         aria-label="Open navigation"
-        className="lg:hidden size-8 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-hover"
+        className="lg:hidden size-8.5 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-hover"
       >
         <MenuIcon className="size-4.5" />
       </button>
 
-      <Link to="/" className="rounded-xs" aria-label="ATS Workplace home">
+      <Link to="/" className="rounded-lg" aria-label="ATS Workplace home">
         <Logo />
       </Link>
 
       {firstName && (
-        <div className="hidden sm:flex items-center gap-2 min-w-0">
-          <span className="text-ghost text-lg font-light" aria-hidden="true">
-            /
+        <div className="hidden sm:flex items-center gap-2 min-w-0 ml-1">
+          <span className="h-5 w-px bg-line-strong" aria-hidden="true" />
+          <span className="ml-1 inline-flex items-center h-7 px-2.5 rounded-full bg-recessed border border-line-soft text-[13px] font-medium text-muted truncate">
+            {firstName}'s workplace
           </span>
-          <span className="t-sm text-muted truncate">{firstName}'s workplace</span>
         </div>
       )}
 
@@ -56,14 +56,14 @@ export default function TopBar({ onOpenNav }) {
               <button
                 {...props}
                 aria-label="Account menu"
-                className="size-8 rounded-sm bg-sunken border border-line text-[11.5px] font-semibold text-muted hover:text-ink hover:border-line-strong"
+                className="size-8.5 rounded-full bg-fill text-[12px] font-semibold text-muted hover:text-ink hover:ring-2 hover:ring-line"
               >
                 {initials(user?.name)}
               </button>
             </Tooltip>
           )}
         >
-          <div className="px-3 py-2">
+          <div className="px-2 py-2">
             <p className="t-sm font-medium text-ink truncate">
               {user?.name || "Signed in"}
             </p>

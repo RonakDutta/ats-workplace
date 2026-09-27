@@ -79,8 +79,8 @@ export default function Modal({
         aria-describedby={describedBy}
         tabIndex={-1}
         className={cn(
-          "relative w-full sm:max-w-110 bg-overlay border border-line",
-          "rounded-t-md sm:rounded-md shadow-lg focus:outline-none",
+          "relative w-full sm:max-w-110 bg-surface border border-line",
+          "rounded-t-xl sm:rounded-xl shadow-lg focus:outline-none",
           className,
         )}
       >

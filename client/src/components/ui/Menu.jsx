@@ -110,7 +110,7 @@ export default function Menu({ trigger, align = "end", width = 224, children }) 
             }}
             className={cn(
               // Above the mobile drawer, below the confirm dialog.
-              "z-95 py-1 bg-overlay border border-line rounded-sm shadow-lg",
+              "z-95 p-1 bg-overlay border border-line rounded-lg shadow-lg",
             )}
             onClick={() => setOpen(false)}
           >
@@ -135,7 +135,7 @@ export function MenuItem({
     <button
       role="menuitem"
       className={cn(
-        "w-full flex items-center gap-2.5 px-3 h-8.5 text-[13px] text-left",
+        "w-full flex items-center gap-2.5 px-2 h-8.5 rounded-md text-[14px] text-left",
         danger
           ? "text-bad hover:bg-bad-soft"
           : selected
@@ -153,5 +153,5 @@ export function MenuItem({
 }
 
 export function MenuSeparator() {
-  return <div className="my-1 h-px bg-line" />;
+  return <div className="-mx-1 my-1 h-px bg-line-soft" />;
 }

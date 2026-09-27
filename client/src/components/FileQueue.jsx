@@ -9,12 +9,12 @@ export default function FileQueue({ files, onRemove, disabled }) {
   if (files.length === 0) return null;
 
   return (
-    <ul className="border border-line rounded-sm divide-y divide-line">
+    <ul className="border border-line rounded-lg divide-y divide-line-soft bg-surface shadow-xs overflow-hidden">
       {files.map((file) => (
-        <li key={file.name} className="flex items-center gap-3 h-10 pl-3 pr-1.5">
-          <FileText className="size-4 text-faint shrink-0" />
+        <li key={file.name} className="flex items-center gap-3 h-11 pl-3 pr-1.5">
+          <span className="size-7 rounded-md bg-recessed flex items-center justify-center shrink-0"><FileText className="size-3.5 text-faint" /></span>
           <span className="t-sm truncate flex-1 min-w-0">{file.name}</span>
-          <span className="t-xs text-faint font-mono tnum shrink-0">
+          <span className="t-sm text-faint tnum shrink-0">
             {formatSize(file.size)}
           </span>
           <button
@@ -22,7 +22,7 @@ export default function FileQueue({ files, onRemove, disabled }) {
             onClick={() => onRemove(file)}
             disabled={disabled}
             aria-label={`Remove ${file.name}`}
-            className="size-7 rounded-xs flex items-center justify-center text-faint hover:text-bad hover:bg-bad-soft disabled:opacity-40"
+            className="size-7.5 rounded-md flex items-center justify-center text-faint hover:text-bad hover:bg-bad-soft disabled:opacity-40"
           >
             <X className="size-3.5" />
           </button>
@@ -37,15 +37,15 @@ export function DropArea({ isDragActive, onBrowse, disabled }) {
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 border border-dashed rounded-sm",
+        "flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-4 border border-dashed rounded-xl transition-colors",
         isDragActive ? "border-accent bg-accent-soft" : "border-line-strong bg-sunken",
       )}
     >
       <div>
-        <p className="t-sm font-medium">
+        <p className="text-[14px] font-medium">
           {isDragActive ? "Release to add these files" : "Drag PDF resumes here"}
         </p>
-        <p className="t-xs text-faint mt-0.5">PDF only, up to 10 MB each.</p>
+        <p className="t-sm text-faint mt-0.5">PDF only, up to 10 MB each.</p>
       </div>
       <Button
         type="button"

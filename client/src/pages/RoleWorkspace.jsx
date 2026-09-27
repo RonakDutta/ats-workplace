@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
-import { ChevronDown, ChevronRight, Download, Play, Search, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Play, Search, Upload, Users } from "lucide-react";
 import PageHeader, { Page } from "../components/PageHeader";
 import FileQueue from "../components/FileQueue";
 import Button from "../components/ui/Button";
@@ -9,7 +9,7 @@ import Tabs from "../components/ui/Tabs";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import ProgressBar from "../components/ui/ProgressBar";
-import { Card, CardFooter, CardHeader } from "../components/ui/Card";
+import { Card, CardFooter, CardHeader, LayerCard } from "../components/ui/Card";
 import { Input, Select, Textarea } from "../components/ui/Field";
 import { ScoreMeter, VerdictTag } from "../components/ui/Score";
 import { Th, TableSkeleton } from "../components/ui/Table";
@@ -275,7 +275,7 @@ export default function RoleWorkspace() {
               onChange={editField(setTitle)}
               placeholder="Untitled role"
               aria-label="Role title"
-              className="w-full bg-transparent t-display text-ink -mx-1.5 px-1.5 py-0.5 rounded-sm border border-transparent hover:border-line focus:border-accent focus:outline-none placeholder:text-ghost"
+              className="w-full bg-transparent t-display text-ink -mx-2 px-2 py-0.5 rounded-lg border border-transparent hover:bg-hover focus:bg-surface focus:border-transparent focus:shadow-[0_0_0_1.5px_var(--focus)] focus:outline-none placeholder:text-ghost"
             />
           }
           actions={
@@ -308,34 +308,30 @@ export default function RoleWorkspace() {
           }
         />
 
-        <dl className="flex flex-wrap gap-x-8 gap-y-2 -mt-2 mb-5 t-sm">
+        <dl className="flex flex-wrap gap-2 -mt-1 mb-6">
           <Meta label="Status">{SAVE_LABELS[saveState]}</Meta>
-          <Meta label="Candidates">
-            <span className="font-mono tnum">{results.length}</span>
-          </Meta>
-          <Meta label="Average score">
-            <span className="font-mono tnum">{average ?? "None"}</span>
-          </Meta>
+          <Meta label="Candidates">{results.length}</Meta>
+          <Meta label="Average score">{average ?? "None"}</Meta>
         </dl>
 
         {(queue.length > 0 || isAnalyzing) && (
-          <Card className="mb-5">
-            <CardHeader
-              title={isAnalyzing ? "Analysing" : `Ready to analyse (${queue.length})`}
-              description={
-                isAnalyzing
+          <LayerCard
+            className="mb-6"
+            title={isAnalyzing ? "Analysing resumes" : `Ready to analyse (${queue.length})`}
+            actions={
+              !isAnalyzing && (
+                <Button size="sm" variant="ghost" onClick={() => setQueue([])}>
+                  Clear queue
+                </Button>
+              )
+            }
+          >
+            <div className="p-4 space-y-4">
+              <p className="t-sm text-faint">
+                {isAnalyzing
                   ? "Each resume appears in the table as soon as it is scored."
-                  : "These files are queued. Run the analysis to score them against the job description."
-              }
-              actions={
-                !isAnalyzing && (
-                  <Button size="sm" variant="ghost" onClick={() => setQueue([])}>
-                    Clear queue
-                  </Button>
-                )
-              }
-            />
-            <div className="px-5 pt-3 pb-5 space-y-4">
+                  : "These files are queued. Run the analysis to score them against the job description."}
+              </p>
               {isAnalyzing && (
                 <ProgressBar
                   done={progress.done}
@@ -351,7 +347,7 @@ export default function RoleWorkspace() {
                 }
               />
             </div>
-          </Card>
+          </LayerCard>
         )}
 
         <Tabs
@@ -365,22 +361,12 @@ export default function RoleWorkspace() {
         />
 
         {tab === "candidates" ? (
-          <Card>
-            {results.length === 0 ? (
-              <EmptyState
-                title="No candidates yet"
-                description="Drop PDF resumes anywhere on this page, or browse for them, then run the analysis."
-                action={
-                  <Button variant="primary" onClick={open}>
-                    <Upload className="size-4" />
-                    Add resumes
-                  </Button>
-                }
-              />
-            ) : (
-              <>
-                <div className="flex flex-col sm:flex-row gap-2 px-5 py-3 border-b border-line">
-                  <div className="relative flex-1 sm:max-w-72">
+          <LayerCard
+            title="Ranked by match score"
+            actions={
+              results.length > 0 && (
+                <>
+                  <div className="relative w-full sm:w-64">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-faint pointer-events-none" />
                     <Input
                       type="search"
@@ -395,7 +381,7 @@ export default function RoleWorkspace() {
                     value={sort}
                     onChange={(event) => setSort(event.target.value)}
                     aria-label="Sort candidates"
-                    className="h-8 sm:w-44 sm:ml-auto"
+                    className="h-8 w-full sm:w-48 text-[13px]"
                   >
                     {Object.entries(SORTS).map(([key, option]) => (
                       <option key={key} value={key}>
@@ -403,8 +389,24 @@ export default function RoleWorkspace() {
                       </option>
                     ))}
                   </Select>
-                </div>
-
+                </>
+              )
+            }
+          >
+            {results.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No candidates yet"
+                description="Drop PDF resumes anywhere on this page, or browse for them, then run the analysis."
+                action={
+                  <Button variant="primary" onClick={open}>
+                    <Upload className="size-4" />
+                    Add resumes
+                  </Button>
+                }
+              />
+            ) : (
+              <>
                 {visible.length === 0 ? (
                   <EmptyState title="No matches" description={`Nothing matches "${query}".`} />
                 ) : (
@@ -417,7 +419,7 @@ export default function RoleWorkspace() {
                 )}
               </>
             )}
-          </Card>
+          </LayerCard>
         ) : (
           <Card>
             <CardHeader
@@ -436,10 +438,10 @@ export default function RoleWorkspace() {
               />
             </div>
             <CardFooter>
-              <p className="t-xs text-faint">
+              <p className="t-sm text-faint">
                 Editing the description does not re-score existing candidates.
               </p>
-              <p className="t-xs text-faint font-mono tnum">{plural(words, "word")}</p>
+              <p className="t-sm text-faint tnum">{plural(words, "word")}</p>
             </CardFooter>
           </Card>
         )}
@@ -447,7 +449,7 @@ export default function RoleWorkspace() {
 
       {isDragActive && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-scrim pointer-events-none p-6">
-          <div className="bg-surface border-2 border-dashed border-accent rounded-md px-8 py-6 text-center">
+          <div className="bg-surface border-2 border-dashed border-accent rounded-xl shadow-lg px-10 py-8 text-center">
             <p className="t-heading">Drop to add resumes</p>
             <p className="t-sm text-faint mt-1">PDF only, up to 10 MB each.</p>
           </div>
@@ -459,9 +461,9 @@ export default function RoleWorkspace() {
 
 function Meta({ label, children }) {
   return (
-    <div className="flex items-baseline gap-2">
+    <div className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-surface border border-line shadow-xs text-[13px]">
       <dt className="text-faint">{label}</dt>
-      <dd className="text-ink font-medium">{children}</dd>
+      <dd className="text-ink font-medium tnum">{children}</dd>
     </div>
   );
 }
@@ -470,13 +472,15 @@ function CandidateTable({ rows, expandedId, onToggle, onDelete }) {
   return (
     <table className="w-full text-left border-collapse">
       <thead>
-        <tr className="border-b border-line bg-sunken">
+        <tr>
           <Th className="w-px">#</Th>
           <Th>Candidate</Th>
           <Th className="w-px">Score</Th>
           <Th className="w-px hidden sm:table-cell">Verdict</Th>
           <Th className="w-px hidden md:table-cell">Skills</Th>
-          <th className="w-px" aria-hidden="true" />
+          <Th className="w-px">
+            <span className="sr-only">Details</span>
+          </Th>
         </tr>
       </thead>
       {rows.map((candidate, index) => {
@@ -484,13 +488,13 @@ function CandidateTable({ rows, expandedId, onToggle, onDelete }) {
         const matched = asSkillList(candidate.matched_skills).length;
         const total = matched + asSkillList(candidate.missing_skills).length;
         return (
-          <tbody key={candidate.id} className="border-b border-line last:border-b-0">
+          <tbody key={candidate.id} className="border-t border-line-soft">
             <tr
               onClick={() => onToggle(candidate.id)}
-              className={cn("cursor-pointer", open ? "bg-accent-soft" : "hover:bg-hover")}
+              className={cn("cursor-pointer transition-colors", open ? "bg-sunken" : "hover:bg-hover")}
             >
-              <td className="pl-5 pr-2 py-3 font-mono t-sm text-faint tnum">{index + 1}</td>
-              <td className="px-3 sm:px-5 py-3 w-full max-w-0">
+              <td className="pl-4 pr-2 py-3 t-sm text-faint tnum">{index + 1}</td>
+              <td className="px-3 sm:px-4 py-3 w-full max-w-0">
                 <button
                   type="button"
                   aria-expanded={open}
@@ -498,18 +502,18 @@ function CandidateTable({ rows, expandedId, onToggle, onDelete }) {
                     event.stopPropagation();
                     onToggle(candidate.id);
                   }}
-                  className="block w-full text-left t-sm font-medium truncate rounded-xs"
+                  className="block w-full text-left text-[14px] font-medium truncate rounded-md"
                 >
                   {candidate.filename}
                 </button>
               </td>
-              <td className="px-3 sm:px-5 py-3">
+              <td className="px-3 sm:px-4 py-3">
                 <ScoreMeter score={candidate.score} width="w-10 sm:w-16" />
               </td>
-              <td className="px-5 py-3 hidden sm:table-cell">
+              <td className="px-4 py-3 hidden sm:table-cell">
                 <VerdictTag score={candidate.score} />
               </td>
-              <td className="px-5 py-3 hidden md:table-cell t-sm text-muted font-mono tnum whitespace-nowrap">
+              <td className="px-4 py-3 hidden md:table-cell t-sm text-muted tnum whitespace-nowrap">
                 {total > 0 ? `${matched} / ${total}` : "None"}
               </td>
               <td className="pl-1 pr-4 py-3 text-faint">

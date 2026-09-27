@@ -6,6 +6,7 @@ import { Card, CardFooter, SettingRow } from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { Field, Input } from "../components/ui/Field";
 import { ThemeSegmented } from "../components/ui/ThemeToggle";
+import Segmented from "../components/ui/Segmented";
 import {
   getApiKey,
   getStrictness,
@@ -16,7 +17,6 @@ import {
 import { STRICTNESS_PRESETS, describeStrictness } from "../lib/strictness";
 import { getUser } from "../lib/session";
 import useSignOut from "../lib/useSignOut";
-import { cn } from "../lib/cn";
 
 export default function SettingsView() {
   return (
@@ -100,13 +100,13 @@ function ApiKeyCard() {
               autoComplete="off"
               spellCheck="false"
               placeholder="AIza"
-              className="font-mono text-[13px] pr-10"
+              className="pr-10"
             />
             <button
               type="button"
               onClick={() => setVisible((current) => !current)}
               aria-label={visible ? "Hide key" : "Show key"}
-              className="absolute right-1 top-1/2 -translate-y-1/2 size-7 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-7 rounded-md flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
             >
               {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
@@ -155,38 +155,21 @@ function StrictnessCard() {
         title="Scoring strictness"
         description="Sets how a score is split between exact skill matches and overall similarity of the resume to the job description."
       >
-        <div
-          role="radiogroup"
-          aria-label="Strictness preset"
-          className="inline-flex border border-line-strong rounded-sm overflow-hidden divide-x divide-line-strong"
-        >
-          {STRICTNESS_PRESETS.map((preset) => {
-            const active = level.name === preset.name;
-            return (
-              <button
-                key={preset.name}
-                role="radio"
-                aria-checked={active}
-                onClick={() => setValue(preset.value)}
-                className={cn(
-                  "h-8.5 px-3.5 text-[13px] font-medium",
-                  active
-                    ? "bg-accent-soft text-accent"
-                    : "bg-surface text-muted hover:bg-hover hover:text-ink",
-                )}
-              >
-                {preset.name}
-              </button>
-            );
-          })}
-        </div>
+        <Segmented
+          label="Strictness preset"
+          value={level.name}
+          onChange={(name) =>
+            setValue(STRICTNESS_PRESETS.find((preset) => preset.name === name).value)
+          }
+          options={STRICTNESS_PRESETS.map((preset) => ({ value: preset.name, label: preset.name }))}
+        />
 
         <div className="mt-5">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="strictness" className="t-sm font-medium">
+            <label htmlFor="strictness" className="text-[14px] font-medium">
               Fine tune
             </label>
-            <span className="t-sm font-mono tnum text-muted">{value}</span>
+            <span className="inline-flex items-center h-6 px-2 rounded-full bg-fill text-[12px] font-medium tnum">{value}</span>
           </div>
           <input
             id="strictness"
@@ -202,21 +185,27 @@ function StrictnessCard() {
           />
         </div>
 
-        <div className="mt-4 border border-line rounded-sm">
-          <div className="flex h-2 gap-0.5 m-3 mb-0" aria-hidden="true">
-            {value > 0 && <div className="bg-accent rounded-l-xs" style={{ flexGrow: value }} />}
+        <div className="mt-4 rounded-lg bg-sunken border border-line-soft p-3.5">
+          <div className="flex h-2 gap-0.5" aria-hidden="true">
+            {value > 0 && <div className="bg-accent rounded-full" style={{ flexGrow: value }} />}
             {value < 100 && (
-              <div className="bg-line-strong rounded-r-xs" style={{ flexGrow: 100 - value }} />
+              <div className="bg-line-strong rounded-full" style={{ flexGrow: 100 - value }} />
             )}
           </div>
-          <dl className="grid grid-cols-2 px-3 py-2.5 t-sm">
+          <dl className="grid grid-cols-2 mt-3">
             <div>
-              <dt className="text-faint t-xs">Skill match</dt>
-              <dd className="font-mono tnum">{value}%</dd>
+              <dt className="flex items-center gap-1.5 t-sm text-faint">
+                <span className="w-3 h-2 rounded-[3px] bg-accent" aria-hidden="true" />
+                Skill match
+              </dt>
+              <dd className="text-[18px] font-semibold tnum mt-0.5">{value}%</dd>
             </div>
             <div className="text-right">
-              <dt className="text-faint t-xs">Overall similarity</dt>
-              <dd className="font-mono tnum">{100 - value}%</dd>
+              <dt className="flex items-center justify-end gap-1.5 t-sm text-faint">
+                <span className="w-3 h-2 rounded-[3px] bg-line-strong" aria-hidden="true" />
+                Overall similarity
+              </dt>
+              <dd className="text-[18px] font-semibold tnum mt-0.5">{100 - value}%</dd>
             </div>
           </dl>
         </div>
@@ -226,7 +215,7 @@ function StrictnessCard() {
         </p>
       </SettingRow>
       <CardFooter>
-        <p className="t-xs text-faint">Applies to resumes analysed after saving.</p>
+        <p className="t-sm text-faint">Applies to resumes analysed after saving.</p>
         <div className="flex gap-2 justify-end">
           {value !== saved && (
             <Button variant="ghost" onClick={() => setValue(saved)}>
@@ -249,19 +238,19 @@ function AccountCard() {
   return (
     <Card>
       <SettingRow title="Account" description="The account this workplace belongs to.">
-        <dl className="border border-line rounded-sm divide-y divide-line t-sm">
+        <dl className="border border-line rounded-lg divide-y divide-line-soft t-sm overflow-hidden">
           <div className="grid grid-cols-[6rem_minmax(0,1fr)] px-3 py-2.5">
             <dt className="text-faint">Name</dt>
             <dd className="truncate">{user?.name || "Not set"}</dd>
           </div>
           <div className="grid grid-cols-[6rem_minmax(0,1fr)] px-3 py-2.5">
             <dt className="text-faint">Email</dt>
-            <dd className="truncate font-mono text-[12.5px]">{user?.email || "Not set"}</dd>
+            <dd className="truncate">{user?.email || "Not set"}</dd>
           </div>
         </dl>
       </SettingRow>
       <CardFooter>
-        <p className="t-xs text-faint">Signing out keeps your API key and preferences in this browser.</p>
+        <p className="t-sm text-faint">Signing out keeps your API key and preferences in this browser.</p>
         <div className="flex justify-end">
           <Button variant="secondary" onClick={handleLogout}>
             Sign out

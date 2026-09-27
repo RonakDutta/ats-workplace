@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search } from "lucide-react";
+import { Award, Briefcase, FileText, Gauge, Plus, Search } from "lucide-react";
 import PageHeader, { Page } from "../components/PageHeader";
 import Button from "../components/ui/Button";
-import { Card, CardHeader } from "../components/ui/Card";
+import { LayerCard } from "../components/ui/Card";
+import Stat from "../components/ui/Stat";
 import EmptyState from "../components/ui/EmptyState";
-import Skeleton from "../components/ui/Skeleton";
 import { Input } from "../components/ui/Field";
 import { ScoreMeter } from "../components/ui/Score";
 import { TableSkeleton, Th } from "../components/ui/Table";
 import { averageScore, byScoreDesc } from "../lib/score";
 import { formatDate } from "../lib/format";
-import { cn } from "../lib/cn";
 import { fetchAllCandidates, getAllRoles } from "../services/api";
 import { getUser } from "../lib/session";
 
@@ -77,52 +76,56 @@ export default function OverviewView() {
         }
       />
 
-      <Card className="grid grid-cols-2 md:grid-cols-4 divide-x divide-line">
-        <Stat label="Roles" value={isLoading ? null : roles.length} />
-        <Stat label="Resumes analysed" value={isLoading ? null : candidates.length} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Roles" icon={Briefcase} value={isLoading ? null : roles.length} />
+        <Stat label="Resumes analysed" icon={FileText} value={isLoading ? null : candidates.length} />
         <Stat
           label="Average match"
+          icon={Gauge}
           value={isLoading ? null : average ?? "None"}
           unit={average != null ? "%" : undefined}
-          className="border-t md:border-t-0 border-line"
         />
-        <Stat
-          label="Strong matches"
-          value={isLoading ? null : strong}
-          className="border-t md:border-t-0 border-line"
-        />
-      </Card>
+        <Stat label="Strong matches" icon={Award} value={isLoading ? null : strong} />
+      </div>
 
-      <Card className="mt-5">
-        <CardHeader
-          divided
-          title="Roles"
-          description="Each role holds one job description and every resume scored against it."
-          actions={
-            roles.length > 0 && (
-              <div className="relative w-full sm:w-60">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-faint pointer-events-none" />
-                <Input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Filter roles"
-                  aria-label="Filter roles"
-                  className="h-8 pl-8 text-[13px]"
-                />
-              </div>
-            )
-          }
-        />
-
+      <LayerCard
+        className="mt-6"
+        title={
+          <span className="flex items-center gap-2">
+            Roles
+            {!isLoading && (
+              <span className="inline-flex items-center h-5 px-1.5 rounded-full bg-fill text-[12px] font-medium text-muted tnum">
+                {roles.length}
+              </span>
+            )}
+          </span>
+        }
+        actions={
+          roles.length > 0 && (
+            <div className="relative w-full sm:w-60">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-faint pointer-events-none" />
+              <Input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter roles"
+                aria-label="Filter roles"
+                className="h-8 pl-8 text-[13px]"
+              />
+            </div>
+          )
+        }
+      >
         {isLoading ? (
           <TableSkeleton />
         ) : roles.length === 0 ? (
           <EmptyState
+            icon={Briefcase}
             title="No roles yet"
             description="Create a role, paste its job description and add resumes to rank them."
             action={
               <Button variant="primary" onClick={() => navigate("/new")}>
+                <Plus className="size-4" />
                 Create a role
               </Button>
             }
@@ -132,24 +135,8 @@ export default function OverviewView() {
         ) : (
           <RolesTable rows={rows} />
         )}
-      </Card>
+      </LayerCard>
     </Page>
-  );
-}
-
-function Stat({ label, value, unit, className }) {
-  return (
-    <div className={cn("px-5 py-4", className)}>
-      <p className="t-sm text-faint">{label}</p>
-      {value == null ? (
-        <Skeleton className="h-7 w-14 mt-1.5" />
-      ) : (
-        <p className="text-[24px] font-semibold leading-tight mt-1 tnum tracking-[-0.02em]">
-          {value}
-          {unit && <span className="text-[15px] text-faint font-normal ml-0.5">{unit}</span>}
-        </p>
-      )}
-    </div>
   );
 }
 
@@ -158,7 +145,7 @@ function RolesTable({ rows }) {
     <div className="overflow-x-auto custom-scrollbar">
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="border-b border-line bg-sunken">
+          <tr>
             <Th>Role</Th>
             <Th className="hidden sm:table-cell">Created</Th>
             <Th className="text-right">Analysed</Th>
@@ -166,30 +153,35 @@ function RolesTable({ rows }) {
             <Th className="hidden lg:table-cell">Top candidate</Th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-line">
+        <tbody className="divide-y divide-line-soft">
           {rows.map(({ role, count, average, top }) => (
             <tr key={role.id} className="hover:bg-hover">
-              <td className="px-5 py-3 max-w-72">
-                <Link to={`/role/${role.id}`} className="link block truncate">
-                  {role.title}
+              <td className="px-4 py-3 max-w-72">
+                <Link to={`/role/${role.id}`} className="flex items-center gap-2.5 min-w-0 group">
+                  <span className="size-7 rounded-md bg-recessed border border-line-soft flex items-center justify-center shrink-0">
+                    <FileText className="size-3.5 text-faint" />
+                  </span>
+                  <span className="text-[14px] font-medium text-ink truncate group-hover:text-link group-hover:underline underline-offset-2">
+                    {role.title}
+                  </span>
                 </Link>
               </td>
-              <td className="px-5 py-3 t-sm text-faint whitespace-nowrap hidden sm:table-cell">
+              <td className="px-4 py-3 t-sm text-faint whitespace-nowrap hidden sm:table-cell">
                 {formatDate(role.created_at)}
               </td>
-              <td className="px-5 py-3 t-sm text-right font-mono tnum">{count}</td>
-              <td className="px-5 py-3 hidden md:table-cell">
+              <td className="px-4 py-3 t-sm text-right tnum">{count}</td>
+              <td className="px-4 py-3 hidden md:table-cell">
                 {average == null ? (
                   <span className="t-sm text-ghost">Not run</span>
                 ) : (
                   <ScoreMeter score={average} />
                 )}
               </td>
-              <td className="px-5 py-3 hidden lg:table-cell max-w-64">
+              <td className="px-4 py-3 hidden lg:table-cell max-w-64">
                 {top ? (
                   <span className="t-sm text-muted block truncate">
                     {top.filename}{" "}
-                    <span className="text-faint font-mono tnum">({top.score})</span>
+                    <span className="text-faint tnum">({top.score})</span>
                   </span>
                 ) : (
                   <span className="t-sm text-ghost">None</span>

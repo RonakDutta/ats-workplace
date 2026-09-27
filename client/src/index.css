@@ -4,102 +4,129 @@
 
 /* ---------------------------------------------------------------------------
    Palette
-   A console layout: grey canvas, white bordered panels, one blue for actions
-   and links. Status colours are reserved for match verdicts.
+   Values follow Cloudflare's Kumo design system, which the Cloudflare
+   dashboard is built on: a near white canvas, white panels outlined by a
+   translucent ring and a soft shadow, neutral greys, one blue for actions.
 --------------------------------------------------------------------------- */
 
 :root {
   color-scheme: light;
 
-  --canvas: #f4f4f5;
+  --canvas: oklch(98.75% 0 0);
   --surface: #ffffff;
-  --sunken: #f9f9fa;
+  --sunken: oklch(98% 0 0);
+  --recessed: oklch(96% 0 0);
   --overlay: #ffffff;
-  --hover: #f3f4f6;
+  --hover: oklch(96.5% 0 0);
+  --fill: oklch(92.2% 0 0);
 
-  --line-soft: #ececef;
-  --line: #dedee3;
-  --line-strong: #c4c4cc;
+  --line-soft: oklch(93.5% 0 0);
+  --line: oklch(14.5% 0 0 / 0.1);
+  --line-strong: oklch(87% 0 0);
 
-  --ink: #1d1d20;
-  --muted: #4f4f57;
-  --faint: #6f6f78;
-  --ghost: #a1a1aa;
+  --ink: oklch(21% 0.006 285.885);
+  --muted: oklch(37% 0 0);
+  --faint: oklch(55.6% 0 0);
+  --ghost: oklch(70.8% 0 0);
 
-  --accent: #0b57d0;
-  --accent-hover: #0842a0;
-  --accent-soft: #edf3fd;
-  --accent-line: #b8cff3;
+  --accent: oklch(57.72% 0.2324 260);
+  --accent-hover: oklch(48.8% 0.243 264.376);
+  --accent-soft: oklch(93.2% 0.032 255.6 / 0.45);
+  --accent-line: oklch(57.72% 0.2324 260 / 0.35);
   --on-accent: #ffffff;
-  --focus: rgba(11, 87, 208, 0.28);
+  --link: oklch(42.4% 0.199 265.638);
+  --focus: oklch(15% 0 0 / 0.5);
 
-  --good: #16733a;
-  --good-soft: #ecf6ef;
-  --good-line: #bddfc8;
-  --warn: #8a5a00;
-  --warn-soft: #fdf5e4;
-  --warn-line: #eed6a4;
-  --bad: #b42318;
-  --bad-soft: #fdefed;
-  --bad-line: #f1c4be;
+  --good: oklch(43.2% 0.095 166.913);
+  --good-soft: oklch(96.2% 0.043 156.7 / 0.57);
+  --good-line: oklch(59.6% 0.145 163.225 / 0.3);
+  --warn: oklch(52% 0.13 57.5);
+  --warn-soft: oklch(93.1% 0.107 94.6 / 0.3);
+  --warn-line: oklch(73.9% 0.177 58.2 / 0.35);
+  --bad: oklch(50.5% 0.213 27.518);
+  --bad-soft: oklch(93.6% 0.032 17.7 / 0.42);
+  --bad-line: oklch(63.7% 0.237 25.331 / 0.3);
 
-  --good-mark: #1f8a47;
-  --warn-mark: #c98a12;
-  --bad-mark: #d0392c;
+  --good-mark: oklch(59.6% 0.145 163.225);
+  --warn-mark: oklch(73.9% 0.177 58.2);
+  --bad-mark: oklch(63.7% 0.237 25.331);
 
-  --chart-accent: #0b57d0;
-  --chart-grid: #ececef;
-  --chart-axis: #6f6f78;
+  --chart-accent: oklch(57.72% 0.2324 260);
+  --chart-grid: oklch(93.5% 0 0);
+  --chart-axis: oklch(55.6% 0 0);
 
-  --scrim: rgba(20, 20, 24, 0.4);
-  --select-bg: #d3e2fb;
+  --art-bg: oklch(96.5% 0.018 255);
+  --art-line: oklch(57.72% 0.2324 260 / 0.08);
+  --petal-a: oklch(57.72% 0.2324 260);
+  --petal-b: oklch(70% 0.14 255);
+  --petal-c: oklch(86% 0.07 255);
+  --bloom: oklch(72% 0.17 52);
+  --bloom-soft: oklch(88% 0.09 60);
+  --leaf: oklch(62% 0.12 160);
+  --leaf-soft: oklch(80% 0.08 160);
+
+  --scrim: oklch(15% 0 0 / 0.35);
+  --select-bg: oklch(88% 0.06 255);
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #111113;
-  --surface: #1a1a1d;
-  --sunken: #202024;
-  --overlay: #1f1f23;
-  --hover: #26262b;
+  --canvas: oklch(10% 0 0);
+  --surface: oklch(17% 0 0);
+  --sunken: oklch(14% 0 0);
+  --recessed: oklch(12.5% 0 0);
+  --overlay: oklch(20% 0 0);
+  --hover: oklch(23% 0 0);
+  --fill: oklch(26.9% 0 0);
 
-  --line-soft: #27272b;
-  --line: #313137;
-  --line-strong: #45454d;
+  --line-soft: oklch(24% 0 0);
+  --line: oklch(30% 0 0);
+  --line-strong: oklch(37% 0 0);
 
-  --ink: #ededf0;
-  --muted: #b3b3bb;
-  --faint: #8c8c95;
-  --ghost: #62626b;
+  --ink: oklch(97% 0 0);
+  --muted: oklch(84% 0 0);
+  --faint: oklch(70.8% 0 0);
+  --ghost: oklch(52% 0 0);
 
-  --accent: #5c9bf2;
-  --accent-hover: #7fb1f5;
-  --accent-soft: rgba(92, 155, 242, 0.13);
-  --accent-line: rgba(92, 155, 242, 0.36);
-  --on-accent: #0c1220;
-  --focus: rgba(92, 155, 242, 0.4);
+  --accent: oklch(55% 0.21 260);
+  --accent-hover: oklch(60% 0.2 260);
+  --accent-soft: oklch(38% 0.145 265.5 / 0.25);
+  --accent-line: oklch(70.7% 0.165 254.624 / 0.4);
+  --on-accent: #ffffff;
+  --link: oklch(70.7% 0.165 254.624);
+  --focus: oklch(93.5% 0 0 / 0.5);
 
-  --good: #4cc27a;
-  --good-soft: rgba(76, 194, 122, 0.12);
-  --good-line: rgba(76, 194, 122, 0.3);
-  --warn: #e3a444;
-  --warn-soft: rgba(227, 164, 68, 0.12);
-  --warn-line: rgba(227, 164, 68, 0.3);
-  --bad: #f2766b;
-  --bad-soft: rgba(242, 118, 107, 0.12);
-  --bad-line: rgba(242, 118, 107, 0.3);
+  --good: oklch(90.5% 0.093 164.15);
+  --good-soft: oklch(39.3% 0.096 152.3 / 0.25);
+  --good-line: oklch(76.5% 0.177 163.223 / 0.3);
+  --warn: oklch(82% 0.14 65);
+  --warn-soft: oklch(35.3% 0.079 65 / 0.4);
+  --warn-line: oklch(75% 0.183 55.934 / 0.3);
+  --bad: oklch(76% 0.15 22.216);
+  --bad-soft: oklch(42.9% 0.176 28.7 / 0.22);
+  --bad-line: oklch(70.4% 0.191 22.216 / 0.3);
 
-  --good-mark: #4cc27a;
-  --warn-mark: #e3a444;
-  --bad-mark: #f2766b;
+  --good-mark: oklch(76.5% 0.177 163.223);
+  --warn-mark: oklch(75% 0.183 55.934);
+  --bad-mark: oklch(70.4% 0.191 22.216);
 
-  --chart-accent: #5c9bf2;
-  --chart-grid: #2a2a2f;
-  --chart-axis: #8c8c95;
+  --chart-accent: oklch(65% 0.19 258);
+  --chart-grid: oklch(24% 0 0);
+  --chart-axis: oklch(70.8% 0 0);
 
-  --scrim: rgba(0, 0, 0, 0.6);
-  --select-bg: rgba(92, 155, 242, 0.3);
+  --art-bg: oklch(17% 0.02 260);
+  --art-line: oklch(70% 0.15 255 / 0.08);
+  --petal-a: oklch(62% 0.2 260);
+  --petal-b: oklch(50% 0.17 262);
+  --petal-c: oklch(36% 0.11 262);
+  --bloom: oklch(72% 0.17 52);
+  --bloom-soft: oklch(52% 0.12 55);
+  --leaf: oklch(62% 0.12 160);
+  --leaf-soft: oklch(42% 0.08 160);
+
+  --scrim: oklch(0% 0 0 / 0.6);
+  --select-bg: oklch(45% 0.12 260 / 0.5);
 }
 
 @theme inline {
@@ -107,12 +134,14 @@
     "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
-    monospace;
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-sunken: var(--sunken);
+  --color-recessed: var(--recessed);
+  --color-fill: var(--fill);
+  --color-link: var(--link);
   --color-overlay: var(--overlay);
   --color-hover: var(--hover);
 
@@ -147,15 +176,18 @@
 
   --color-scrim: var(--scrim);
 
-  /* Tight corners. Panels read as sheets of a document, not as floating cards. */
-  --radius-xs: 3px;
+  /* Kumo's radius ladder: 4, 6, 8 and 12. Controls, cards and menus use 8. */
+  --radius-xs: 4px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  --radius-xl: 12px;
 
-  --shadow-sm: 0 1px 2px rgba(16, 17, 20, 0.05);
+  --shadow-xs: 0 1px 2px 0 oklch(0% 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 oklch(0% 0 0 / 0.08), 0 1px 2px -1px oklch(0% 0 0 / 0.08);
   --shadow-lg:
-    0 1px 3px rgba(16, 17, 20, 0.08), 0 10px 28px -8px rgba(16, 17, 20, 0.22);
+    0 0 0 1px oklch(0% 0 0 / 0.04), 0 4px 8px -2px oklch(0% 0 0 / 0.08),
+    0 16px 32px -8px oklch(0% 0 0 / 0.16);
 }
 
 @layer base {
@@ -187,7 +219,8 @@
 
   :focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 1px;
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
   }
 
   button,
@@ -207,9 +240,9 @@
 
   /* Type scale. Sizes live here so a heading is the same size everywhere. */
   .t-display {
-    font-size: 1.5rem;
+    font-size: 1.625rem;
     line-height: 1.25;
-    letter-spacing: -0.018em;
+    letter-spacing: -0.022em;
     font-weight: 600;
   }
   .t-title {
@@ -237,14 +270,14 @@
     line-height: 1.45;
   }
   .t-label {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.4;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--faint);
   }
 
   .link {
-    color: var(--accent);
+    color: var(--link);
     font-weight: 500;
     text-underline-offset: 3px;
   }
@@ -254,8 +287,8 @@
 
   /* Static placeholder block while data loads. It does not animate. */
   .placeholder {
-    background-color: var(--line-soft);
-    border-radius: var(--radius-xs);
+    background-color: var(--recessed);
+    border-radius: var(--radius-md);
   }
 }
 
@@ -274,6 +307,7 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: var(--line-strong);
     border: 3px solid transparent;
+    border-radius: 999px;
     background-clip: content-box;
   }
 }
@@ -298,40 +332,44 @@
   background: transparent;
 }
 .range-track::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 6px;
+  border-radius: 999px;
   background: linear-gradient(
     to right,
     var(--accent) 0%,
     var(--accent) var(--range-progress, 50%),
-    var(--line) var(--range-progress, 50%),
-    var(--line) 100%
+    var(--fill) var(--range-progress, 50%),
+    var(--fill) 100%
   );
 }
 .range-track::-moz-range-track {
-  height: 4px;
-  background: var(--line);
+  height: 6px;
+  border-radius: 999px;
+  background: var(--fill);
 }
 .range-track::-moz-range-progress {
-  height: 4px;
+  height: 6px;
+  border-radius: 999px;
   background: var(--accent);
 }
 .range-track::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin-top: -6px;
-  border-radius: 3px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
 }
 .range-track::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
 }
 .range-track:focus-visible {
   outline: none;

@@ -111,7 +111,7 @@ export default function NewRoleView() {
         />
 
         <form onSubmit={handleSubmit} noValidate>
-          <Card className="divide-y divide-line">
+          <Card className="divide-y divide-line-soft">
             <SettingRow
               title="Role details"
               description="The name is how the role appears in the sidebar. The description is what every resume is scored against."
@@ -175,7 +175,7 @@ export default function NewRoleView() {
             </SettingRow>
 
             <CardFooter>
-              <p className="t-xs text-faint">
+              <p className="t-sm text-faint">
                 Analysis uses the Gemini key and strictness saved in Settings.
               </p>
               <div className="flex gap-2 justify-end">

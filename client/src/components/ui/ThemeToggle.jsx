@@ -1,55 +1,23 @@
 import React from "react";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import Menu, { MenuItem } from "./Menu";
+import Segmented from "./Segmented";
 import Tooltip from "./Tooltip";
 import { useTheme } from "../../lib/theme";
-import { cn } from "../../lib/cn";
 
 const OPTIONS = [
-  { value: "light", label: "Light", icon: Sun, hint: "Always use the light theme" },
-  { value: "system", label: "System", icon: Monitor, hint: "Follow your device setting" },
-  { value: "dark", label: "Dark", icon: Moon, hint: "Always use the dark theme" },
+  { value: "light", label: "Light", icon: Sun, title: "Always use the light theme" },
+  { value: "system", label: "System", icon: Monitor, title: "Follow your device setting" },
+  { value: "dark", label: "Dark", icon: Moon, title: "Always use the dark theme" },
 ];
 
 /** Labelled segmented control. Used where there is room to spell it out. */
-export function ThemeSegmented({ className }) {
+export function ThemeSegmented() {
   const { theme, setTheme } = useTheme();
-
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      className={cn(
-        "inline-flex items-stretch border border-line-strong rounded-sm overflow-hidden divide-x divide-line-strong",
-        className,
-      )}
-    >
-      {OPTIONS.map(({ value, label, icon: Icon, hint }) => {
-        const active = theme === value;
-        return (
-          <button
-            key={value}
-            role="radio"
-            aria-checked={active}
-            title={hint}
-            onClick={() => setTheme(value)}
-            className={cn(
-              "inline-flex items-center gap-1.5 h-8.5 px-3 text-[13px] font-medium",
-              active
-                ? "bg-accent-soft text-accent"
-                : "bg-surface text-muted hover:bg-hover hover:text-ink",
-            )}
-          >
-            <Icon className="size-3.5" />
-            {label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <Segmented label="Theme" value={theme} onChange={setTheme} options={OPTIONS} />;
 }
 
-/** Compact icon trigger opening the same three named choices. For toolbars. */
+/** Compact icon trigger opening the same three choices. For toolbars. */
 export function ThemeMenu() {
   const { theme, setTheme } = useTheme();
   const current = OPTIONS.find((option) => option.value === theme) ?? OPTIONS[1];
@@ -63,7 +31,7 @@ export function ThemeMenu() {
           <button
             {...props}
             aria-label={`Theme, currently ${current.label}`}
-            className="size-8 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-hover"
+            className="size-8.5 rounded-lg flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
           >
             <CurrentIcon className="size-4" />
           </button>
@@ -76,9 +44,7 @@ export function ThemeMenu() {
           icon={Icon}
           selected={theme === value}
           onClick={() => setTheme(value)}
-          trailing={
-            theme === value ? <Check className="size-3.5 shrink-0" /> : null
-          }
+          trailing={theme === value ? <Check className="size-3.5 shrink-0" /> : null}
         >
           {label}
         </MenuItem>

@@ -28,11 +28,11 @@ const WORKPLACE = [
 
 function navClasses({ isActive }, rail) {
   return cn(
-    "flex items-center h-8.5 rounded-sm text-[13.5px]",
-    rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5",
+    "flex items-center min-h-8.5 rounded-lg text-[14px] font-medium transition-colors duration-150",
+    rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-3",
     isActive
-      ? "bg-accent-soft text-accent font-medium"
-      : "text-muted hover:bg-hover hover:text-ink",
+      ? "bg-recessed text-ink ring-1 ring-line-soft"
+      : "text-faint hover:bg-hover hover:text-ink",
   );
 }
 
@@ -53,8 +53,8 @@ function NavItem({ to, label, icon: Icon, end, rail, onNavigate }) {
 
 function GroupLabel({ children, action }) {
   return (
-    <div className="flex items-center justify-between h-7 px-2.5 mt-4 mb-0.5">
-      <p className="t-label">{children}</p>
+    <div className="flex items-center justify-between h-7 px-3 mt-5 mb-1">
+      <p className="text-[13px] font-medium text-faint">{children}</p>
       {action}
     </div>
   );
@@ -110,20 +110,20 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
   return (
     <div className="flex flex-col h-full bg-surface">
       {variant === "mobile" && (
-        <div className="flex items-center justify-between h-12 px-4 border-b border-line shrink-0">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-line shrink-0">
           <span className="t-sm font-semibold">Navigation</span>
           <button
             onClick={onClose}
             aria-label="Close navigation"
-            className="size-8 rounded-sm flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
+            className="size-8.5 rounded-lg flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
           >
             <X className="size-4.5" />
           </button>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 py-3">
-        <nav className="flex flex-col gap-0.5">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-3">
+        <nav className="flex flex-col gap-1">
           <NavItem to="/" end label="Overview" icon={Home} rail={rail} onNavigate={onNavigate} />
           {variant === "mobile" && (
             <NavItem to="/new" label="New role" icon={Plus} onNavigate={onNavigate} />
@@ -131,7 +131,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
         </nav>
 
         {rail ? (
-          <div className="h-px bg-line my-3 mx-2" />
+          <div className="h-px bg-line-soft my-3 mx-2" />
         ) : (
           <GroupLabel
             action={
@@ -140,7 +140,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
                 onClick={onNavigate}
                 title="New role"
                 aria-label="New role"
-                className="size-6 -mr-1 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
+                className="size-6 -mr-1.5 rounded-md flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
               >
                 <Plus className="size-3.5" />
               </NavLink>
@@ -150,14 +150,14 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
           </GroupLabel>
         )}
 
-        <nav className="flex flex-col gap-0.5">
+        <nav className="flex flex-col gap-1">
           {loadingRoles ? (
             Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton key={index} className={cn("h-8.5 my-px", rail && "w-9 mx-auto")} />
+              <Skeleton key={index} className={cn("h-8.5 rounded-lg", rail && "w-9 mx-auto")} />
             ))
           ) : roles.length === 0 ? (
             !rail && (
-              <p className="px-2.5 py-1.5 t-xs text-faint">No roles yet.</p>
+              <p className="px-3 py-1.5 t-sm text-ghost">No roles yet.</p>
             )
           ) : (
             roles.map((role) => (
@@ -180,7 +180,7 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
                         <button
                           {...props}
                           aria-label={`Options for ${role.title}`}
-                          className="size-6.5 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-line"
+                          className="size-6.5 rounded-md flex items-center justify-center text-faint hover:text-ink hover:bg-fill"
                         >
                           <MoreHorizontal className="size-4" />
                         </button>
@@ -198,19 +198,19 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
         </nav>
 
         {rail ? (
-          <div className="h-px bg-line my-3 mx-2" />
+          <div className="h-px bg-line-soft my-3 mx-2" />
         ) : (
           <GroupLabel>Workplace</GroupLabel>
         )}
 
-        <nav className="flex flex-col gap-0.5">
+        <nav className="flex flex-col gap-1">
           {WORKPLACE.map((item) => (
             <NavItem key={item.to} {...item} rail={rail} onNavigate={onNavigate} />
           ))}
         </nav>
       </div>
 
-      <div className="shrink-0 border-t border-line px-2.5 py-2.5 flex flex-col gap-0.5">
+      <div className="shrink-0 border-t border-line px-2 py-2 flex flex-col gap-1">
         <NavItem to="/settings" label="Settings" icon={Settings} rail={rail} onNavigate={onNavigate} />
         {variant === "desktop" && (
           <button
@@ -218,8 +218,8 @@ export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant
             aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
             title={rail ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
-              "flex items-center h-8.5 rounded-sm text-[13.5px] text-faint hover:bg-hover hover:text-ink",
-              rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5",
+              "flex items-center min-h-8.5 rounded-lg text-[14px] font-medium text-faint hover:bg-hover hover:text-ink",
+              rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-3",
             )}
           >
             {rail ? (

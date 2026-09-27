@@ -47,7 +47,7 @@ export default function MainLayout() {
         <aside
           className={cn(
             "hidden lg:block shrink-0 border-r border-line",
-            collapsed ? "w-15" : "w-60",
+            collapsed ? "w-14" : "w-62",
           )}
         >
           <Sidebar variant="desktop" collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />

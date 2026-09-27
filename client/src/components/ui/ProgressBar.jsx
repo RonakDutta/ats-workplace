@@ -19,9 +19,9 @@ export default function ProgressBar({ done, total, label, className }) {
         aria-valuemin={0}
         aria-valuemax={total}
         aria-label="Analysis progress"
-        className="h-1.5 bg-line-soft overflow-hidden rounded-xs"
+        className="h-2 bg-fill overflow-hidden rounded-full"
       >
-        <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
+        <div className="h-full bg-accent rounded-full" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );

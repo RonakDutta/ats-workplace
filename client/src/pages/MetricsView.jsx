@@ -10,7 +10,9 @@ import {
   YAxis,
 } from "recharts";
 import PageHeader, { Page } from "../components/PageHeader";
-import { Card, CardHeader } from "../components/ui/Card";
+import { Card, LayerCard } from "../components/ui/Card";
+import Stat from "../components/ui/Stat";
+import { Briefcase, FileText, Gauge, SlidersHorizontal } from "lucide-react";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { fetchSystemMetrics } from "../services/api";
@@ -111,33 +113,28 @@ export default function MetricsView() {
     <Page>
       {header}
 
-      <Card className="grid grid-cols-2 lg:grid-cols-4">
-        <Stat label="Candidates analysed" value={metrics.kpis?.total_candidates ?? 0} />
-        <Stat
-          label="Active roles"
-          value={metrics.kpis?.total_roles ?? 0}
-          className="border-l border-line"
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Candidates analysed" icon={FileText} value={metrics.kpis?.total_candidates ?? 0} />
+        <Stat label="Active roles" icon={Briefcase} value={metrics.kpis?.total_roles ?? 0} />
         <Stat
           label="Average match"
+          icon={Gauge}
           value={metrics.kpis?.avg_score ?? "None"}
           unit={metrics.kpis?.avg_score != null ? "%" : undefined}
-          className="border-t lg:border-t-0 lg:border-l border-line"
         />
         <Stat
           label="Strictness"
+          icon={SlidersHorizontal}
           value={strictness}
           unit={describeStrictness(strictness).name}
-          className="border-t lg:border-t-0 border-l border-line"
         />
-      </Card>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">
-        <Card className="lg:col-span-3">
-          <CardHeader
-            title="Most common skill gaps"
-            description="Required skills most often missing, counted across every analysed resume."
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-6">
+        <LayerCard className="lg:col-span-3" bodyClassName="h-[calc(100%-2.75rem)]" title="Most common skill gaps">
+          <p className="t-sm text-faint px-4 pt-4">
+            Required skills most often missing, counted across every analysed resume.
+          </p>
           {skillGap.length === 0 ? (
             <EmptyState
               title="No gaps recorded yet"
@@ -169,8 +166,8 @@ export default function MetricsView() {
                   <Bar
                     dataKey="count"
                     fill={colors.accent}
-                    radius={[0, 4, 4, 0]}
-                    maxBarSize={18}
+                    radius={[0, 5, 5, 0]}
+                    maxBarSize={14}
                     isAnimationActive={false}
                   >
                     <LabelList
@@ -185,13 +182,9 @@ export default function MetricsView() {
               </ResponsiveContainer>
             </div>
           )}
-        </Card>
+        </LayerCard>
 
-        <Card className="lg:col-span-2">
-          <CardHeader
-            title="Score distribution"
-            description="Where analysed candidates land by verdict."
-          />
+        <LayerCard className="lg:col-span-2" bodyClassName="h-[calc(100%-2.75rem)]" title="Score distribution">
           {tierTotal === 0 ? (
             <EmptyState
               title="Nothing to show yet"
@@ -207,7 +200,7 @@ export default function MetricsView() {
               </p>
 
               <div
-                className="flex h-3 gap-0.5 mt-4"
+                className="flex h-2.5 gap-0.5 mt-4"
                 role="img"
                 aria-label={tiers.map((tier) => `${tier.name}: ${tier.value}`).join(", ")}
               >
@@ -218,8 +211,8 @@ export default function MetricsView() {
                       key={tier.name}
                       title={`${tier.name}: ${tier.value}`}
                       className={cn(
-                        index === 0 && "rounded-l-sm",
-                        index === shown.length - 1 && "rounded-r-sm",
+                        index === 0 && "rounded-l-full",
+                        index === shown.length - 1 && "rounded-r-full",
                       )}
                       style={{ flexGrow: tier.value, backgroundColor: tier.color }}
                     />
@@ -228,19 +221,19 @@ export default function MetricsView() {
 
               <table className="w-full mt-5 t-sm">
                 <thead>
-                  <tr className="border-b border-line text-left">
+                  <tr className="border-b border-line-soft text-left">
                     <th className="pb-2 t-xs font-semibold text-faint">Verdict</th>
                     <th className="pb-2 t-xs font-semibold text-faint text-right">Count</th>
                     <th className="pb-2 t-xs font-semibold text-faint text-right w-14">Share</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-line">
+                <tbody className="divide-y divide-line-soft">
                   {tiers.map((tier) => (
                     <tr key={tier.name}>
                       <td className="py-2.5">
                         <span className="flex items-center gap-2.5">
                           <span
-                            className="w-3 h-3 rounded-xs shrink-0"
+                            className="w-3 h-2 rounded-[3px] shrink-0"
                             style={{ backgroundColor: tier.color }}
                             aria-hidden="true"
                           />
@@ -250,8 +243,8 @@ export default function MetricsView() {
                           </span>
                         </span>
                       </td>
-                      <td className="py-2.5 text-right font-mono tnum">{tier.value}</td>
-                      <td className="py-2.5 text-right font-mono tnum text-faint">
+                      <td className="py-2.5 text-right tnum">{tier.value}</td>
+                      <td className="py-2.5 text-right tnum text-faint">
                         {Math.round((tier.value / tierTotal) * 100)}%
                       </td>
                     </tr>
@@ -260,14 +253,18 @@ export default function MetricsView() {
               </table>
             </div>
           )}
-        </Card>
+        </LayerCard>
       </div>
 
-      <Card className="mt-5">
-        <CardHeader
-          title="Resumes analysed per day"
-          description={`Last ${DAYS} days. ${weekTotal} in total.`}
-        />
+      <LayerCard
+        className="mt-4"
+        title="Resumes analysed per day"
+        actions={
+          <span className="inline-flex items-center h-6 px-2.5 mr-1 rounded-full bg-fill text-[12px] font-medium text-muted">
+            Last {DAYS} days, {weekTotal} total
+          </span>
+        }
+      >
         <div className="px-3 pt-4 pb-4 h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={week} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
@@ -302,20 +299,8 @@ export default function MetricsView() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </Card>
+      </LayerCard>
     </Page>
-  );
-}
-
-function Stat({ label, value, unit, className }) {
-  return (
-    <div className={cn("px-5 py-4", className)}>
-      <p className="t-sm text-faint">{label}</p>
-      <p className="text-[24px] font-semibold leading-tight mt-1 tracking-[-0.02em]">
-        {value}
-        {unit && <span className="text-[14px] text-faint font-normal ml-1 tracking-normal">{unit}</span>}
-      </p>
-    </div>
   );
 }
 
@@ -324,10 +309,10 @@ function ChartTooltip({ active, payload, label, unit }) {
   const value = Number(payload[0].value) || 0;
 
   return (
-    <div className="bg-overlay border border-line rounded-sm shadow-lg px-3 py-2">
+    <div className="bg-surface border border-line rounded-lg shadow-lg px-3 py-2">
       <p className="t-xs text-faint">{label}</p>
       <p className="t-sm font-medium text-ink mt-0.5">
-        <span className="font-mono tnum">{value}</span> {value === 1 ? unit : `${unit}s`}
+        <span className="tnum">{value}</span> {value === 1 ? unit : `${unit}s`}
       </p>
     </div>
   );
@@ -337,19 +322,16 @@ function MetricsSkeleton({ header }) {
   return (
     <Page>
       {header}
-      <Card className="grid grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="px-5 py-4">
-            <Skeleton className="w-24 h-3.5" />
-            <Skeleton className="w-14 h-7 mt-2" />
-          </div>
+          <Stat key={index} label="Loading" value={null} />
         ))}
-      </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">
-        <Card className="lg:col-span-3 h-80" />
-        <Card className="lg:col-span-2 h-80" />
       </div>
-      <Card className="h-80 mt-5" />
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-6">
+        <Skeleton className="lg:col-span-3 h-80 rounded-xl" />
+        <Skeleton className="lg:col-span-2 h-80 rounded-xl" />
+      </div>
+      <Skeleton className="h-80 mt-4 rounded-xl" />
     </Page>
   );
 }

@@ -14,7 +14,7 @@ export default function Tooltip({ label, className, children }) {
         role="tooltip"
         className={cn(
           "pointer-events-none absolute right-0 top-[calc(100%+6px)] z-70 whitespace-nowrap",
-          "px-2 h-6 flex items-center rounded-xs text-[11.5px] font-medium bg-ink text-surface",
+          "px-2 h-6 flex items-center rounded-md text-[12px] font-medium bg-ink text-surface shadow-sm",
           "opacity-0 group-hover/tip:opacity-100 group-focus-within/tip:opacity-100",
         )}
       >

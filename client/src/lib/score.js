@@ -38,9 +38,9 @@ export function byScoreDesc(a, b) {
 }
 
 export const TONE_CLASSES = {
-  good: { text: "text-good", bar: "bg-good-mark", tag: "bg-good-soft border-good-line text-good" },
-  warn: { text: "text-warn", bar: "bg-warn-mark", tag: "bg-warn-soft border-warn-line text-warn" },
-  bad: { text: "text-bad", bar: "bg-bad-mark", tag: "bg-bad-soft border-bad-line text-bad" },
+  good: { text: "text-good", bar: "bg-good-mark", tag: "bg-good-soft text-good" },
+  warn: { text: "text-warn", bar: "bg-warn-mark", tag: "bg-warn-soft text-warn" },
+  bad: { text: "text-bad", bar: "bg-bad-mark", tag: "bg-bad-soft text-bad" },
 };
 
 export function averageScore(rows) {
