@@ -1,9 +1,14 @@
 import axios from "axios";
 import { clearSession, getToken } from "../lib/session";
 
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return "https://ats-workplace-backend.onrender.com/api";
+  return envUrl.endsWith("/api") ? envUrl : `${envUrl.replace(/\/+$/, "")}/api`;
+};
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ?? "https://ats-workplace-backend.onrender.com/api",
+  baseURL: getBaseUrl(),
 });
 
 api.interceptors.request.use((config) => {
