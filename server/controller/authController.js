@@ -10,10 +10,12 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export const signup = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+    const cleanEmail = email?.trim().toLowerCase();
 
-    const userCheck = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
+    const userCheck = await pool.query(
+      "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+      [cleanEmail],
+    );
     if (userCheck.rows.length > 0)
       return res.status(400).json({ error: "User already exists." });
 
@@ -22,7 +24,7 @@ export const signup = async (req, res) => {
 
     const newUser = await pool.query(
       "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email",
-      [name, email, hashedPassword],
+      [name?.trim(), cleanEmail, hashedPassword],
     );
 
     const token = jwt.sign({ id: newUser.rows[0].id }, JWT_SECRET, {
@@ -38,10 +40,11 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const cleanEmail = email?.trim().toLowerCase();
 
     const userResult = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email],
+      "SELECT * FROM users WHERE LOWER(email) = LOWER($1)",
+      [cleanEmail],
     );
     if (userResult.rows.length === 0)
       return res.status(400).json({ error: "Invalid credentials." });

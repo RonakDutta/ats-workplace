@@ -1,136 +1,68 @@
 import axios from "axios";
+import { clearSession, getToken } from "../lib/session";
 
-const API_BASE_URL = "https://ats-workplace-backend.onrender.com/api";
+const api = axios.create({
+  baseURL:
+    import.meta.env.VITE_API_URL ?? "https://ats-workplace-backend.onrender.com/api",
+});
 
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem("ats_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Signup and Login
-export const loginUser = async (email, password) => {
-  const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-    email,
-    password,
-  });
-  return response.data;
-};
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      if (typeof window !== "undefined" && window.location.pathname !== "/auth") {
+        clearSession();
+        window.location.href = "/auth";
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
-export const signupUser = async (name, email, password) => {
-  const response = await axios.post(`${API_BASE_URL}/auth/signup`, {
-    name,
-    email,
-    password,
-  });
-  return response.data;
-};
+const data = (request) => request.then((response) => response.data);
 
-// 1. Save a new draft to PostgreSQL
-export const saveRoleDraft = async (title, description) => {
-  const response = await axios.post(`${API_BASE_URL}/roles`, {
-    title,
-    description,
-  });
-  return response.data;
-};
+// Auth
+export const loginUser = (email, password) =>
+  data(api.post("/auth/login", { email, password }));
 
-// Add this right under your saveRoleDraft function
-export const updateRoleDraft = async (id, title, description) => {
-  const response = await axios.put(`${API_BASE_URL}/roles/${id}`, {
-    title,
-    description,
-  });
-  return response.data;
-};
+export const signupUser = (name, email, password) =>
+  data(api.post("/auth/signup", { name, email, password }));
 
-// 2. Fetch a specific role and its candidates on page load
-export const getRoleById = async (id) => {
-  const response = await axios.get(`${API_BASE_URL}/roles/${id}`);
-  return response.data;
-};
+// Roles
+export const getAllRoles = () => data(api.get("/roles"));
+export const getRoleById = (id) => data(api.get(`/roles/${id}`));
+export const createRole = (title, description) =>
+  data(api.post("/roles", { title, description }));
+export const updateRole = (id, title, description) =>
+  data(api.put(`/roles/${id}`, { title, description }));
+export const deleteRoleById = (id) => data(api.delete(`/roles/${id}`));
 
-// 3. Get all roles
-export const getAllRoles = async () => {
-  const response = await axios.get(`${API_BASE_URL}/roles`);
-  return response.data;
-};
+// Candidates
+export const fetchAllCandidates = () => data(api.get("/roles/candidates/all"));
+export const deleteCandidateById = (id) =>
+  data(api.delete(`/roles/candidate/${id}`));
 
-// 4. We send the roleId so the backend knows where to save the candidates
-export const analyzeCandidates = async (
-  description,
-  candidates,
-  roleId,
-  apiKey,
-  strictness,
-) => {
-  const formData = new FormData();
-  formData.append("description", description);
-  formData.append("roleId", roleId);
-  formData.append("apiKey", apiKey);
-  formData.append("strictness", strictness);
+// Insights
+export const fetchSystemMetrics = () => data(api.get("/roles/metrics/dashboard"));
 
-  candidates.forEach((file) => {
-    formData.append("candidates", file);
-  });
+/** Scores one resume against a role and returns the saved candidate rows. */
+export async function analyzeResume({ description, file, roleId, apiKey, strictness }) {
+  const form = new FormData();
+  form.append("description", description);
+  form.append("roleId", roleId);
+  form.append("apiKey", apiKey);
+  form.append("strictness", strictness);
+  form.append("candidates", file);
 
-  const response = await axios.post(`${API_BASE_URL}/analyze`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
-  return response.data;
-};
-
-/**
- * One resume per request. The endpoint processes a batch serially and only
- * answers once the last file is done, so sending them individually is the only
- * way to know how far along a run actually is, and it keeps one unreadable PDF
- * from taking the rest of the batch down with it.
- */
-export const analyzeOneCandidate = async (
-  description,
-  file,
-  roleId,
-  apiKey,
-  strictness,
-) => {
-  const formData = new FormData();
-  formData.append("description", description);
-  formData.append("roleId", roleId);
-  formData.append("apiKey", apiKey);
-  formData.append("strictness", strictness);
-  formData.append("candidates", file);
-
-  const response = await axios.post(`${API_BASE_URL}/analyze`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return Array.isArray(response.data) ? response.data : [];
-};
-
-// Fetch the master list of all candidates
-export const fetchAllCandidates = async () => {
-  const response = await axios.get(`${API_BASE_URL}/roles/candidates/all`);
-  return response.data;
-};
-
-// Delete a specific role
-export const deleteRoleById = async (id) => {
-  const response = await axios.delete(`${API_BASE_URL}/roles/${id}`);
-  return response.data;
-};
-
-// Delete a specific candidate
-export const deleteCandidateById = async (id) => {
-  const response = await axios.delete(`${API_BASE_URL}/roles/candidate/${id}`);
-  return response.data;
-};
-
-// Fetch system analytics
-export const fetchSystemMetrics = async () => {
-  const response = await axios.get(`${API_BASE_URL}/roles/metrics/dashboard`);
-  return response.data;
-};
+  const rows = await data(api.post("/analyze", form));
+  return Array.isArray(rows) ? rows : [];
+}

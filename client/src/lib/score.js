@@ -3,9 +3,9 @@
  * table cell and the distribution chart never disagree with each other.
  */
 export const SCORE_TIERS = [
-  { id: "top", min: 80, label: "Strong match", tone: "good" },
-  { id: "good", min: 60, label: "Possible match", tone: "warn" },
-  { id: "poor", min: 0, label: "Weak match", tone: "bad" },
+  { id: "top", min: 80, label: "Strong match", short: "Strong", tone: "good" },
+  { id: "good", min: 60, label: "Possible match", short: "Possible", tone: "warn" },
+  { id: "poor", min: 0, label: "Weak match", short: "Weak", tone: "bad" },
 ];
 
 export function tierFor(score) {
@@ -38,7 +38,14 @@ export function byScoreDesc(a, b) {
 }
 
 export const TONE_CLASSES = {
-  good: { text: "text-good", dot: "bg-good-mark", ring: "var(--good-mark)" },
-  warn: { text: "text-warn", dot: "bg-warn-mark", ring: "var(--warn-mark)" },
-  bad: { text: "text-bad", dot: "bg-bad-mark", ring: "var(--bad-mark)" },
+  good: { text: "text-good", bar: "bg-good-mark", tag: "bg-good-soft text-good" },
+  warn: { text: "text-warn", bar: "bg-warn-mark", tag: "bg-warn-soft text-warn" },
+  bad: { text: "text-bad", bar: "bg-bad-mark", tag: "bg-bad-soft text-bad" },
 };
+
+export function averageScore(rows) {
+  if (!rows.length) return null;
+  return Math.round(
+    rows.reduce((sum, row) => sum + (Number(row.score) || 0), 0) / rows.length,
+  );
+}

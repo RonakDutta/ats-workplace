@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-PyMuPDF
-spacy
-sentence-transformers
 python-multipart
-google-generativeai
+PyMuPDF>=1.24
+spacy>=3.7
+numpy
+sentence-transformers
+google-genai

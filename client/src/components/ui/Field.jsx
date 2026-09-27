@@ -1,46 +1,31 @@
 import React from "react";
 import { cn } from "../../lib/cn";
 
-// Resting state is a soft fill rather than an outlined box, so a form reads as
-// a set of surfaces. The border only asserts itself on focus and on error.
 const CONTROL =
-  "w-full bg-sunken text-ink placeholder:text-ghost border rounded-md " +
-  "transition-[border-color,box-shadow,background-color] duration-150 ease-out-soft " +
-  "focus:outline-none focus-visible:outline-none focus:bg-surface " +
-  "disabled:opacity-55 disabled:cursor-not-allowed";
+  "w-full bg-surface text-ink placeholder:text-ghost border rounded-lg shadow-xs " +
+  "transition-[border-color,box-shadow] duration-150 " +
+  "focus:outline-none focus-visible:outline-none " +
+  "disabled:bg-sunken disabled:text-faint disabled:shadow-none disabled:cursor-not-allowed";
 
 function stateRing(invalid) {
   return invalid
-    ? "border-bad-line bg-bad-soft focus:border-bad focus:shadow-[0_0_0_3px_var(--bad-soft)]"
-    : "border-transparent hover:border-line focus:border-accent focus:shadow-[0_0_0_3px_var(--focus)]";
+    ? "border-bad-mark focus:shadow-[0_0_0_1.5px_var(--bad-line)]"
+    : "border-line hover:border-line-strong focus:border-transparent focus:shadow-[0_0_0_1.5px_var(--focus)]";
 }
 
-export const Input = React.forwardRef(function Input(
-  { className, invalid, ...props },
-  ref,
-) {
+export const Input = React.forwardRef(function Input({ className, invalid, ...props }, ref) {
   return (
     <input
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cn(
-        CONTROL,
-        stateRing(invalid),
-        "h-11 px-3.5 text-[14.5px]",
-        className,
-      )}
+      className={cn(CONTROL, stateRing(invalid), "h-9 px-3 text-[14px]", className)}
       {...props}
     />
   );
 });
 
-/**
- * `bare` drops the chrome so the field reads as the page it sits on rather
- * than as a control placed onto it. Used for the job description, which is the
- * document, not a form input.
- */
 export const Textarea = React.forwardRef(function Textarea(
-  { className, invalid, bare, ...props },
+  { className, invalid, ...props },
   ref,
 ) {
   return (
@@ -48,15 +33,9 @@ export const Textarea = React.forwardRef(function Textarea(
       ref={ref}
       aria-invalid={invalid || undefined}
       className={cn(
-        "w-full text-ink placeholder:text-ghost resize-none custom-scrollbar",
-        "focus:outline-none focus-visible:outline-none disabled:opacity-55 disabled:cursor-not-allowed",
-        bare
-          ? "bg-transparent border-none p-0 t-body"
-          : cn(
-              CONTROL,
-              stateRing(invalid),
-              "px-4 py-3.5 text-sm leading-[1.7]",
-            ),
+        CONTROL,
+        stateRing(invalid),
+        "px-3 py-2.5 text-[14px] leading-[1.65] resize-y custom-scrollbar",
         className,
       )}
       {...props}
@@ -64,19 +43,32 @@ export const Textarea = React.forwardRef(function Textarea(
   );
 });
 
-export function Field({ label, hint, error, htmlFor, children, className }) {
+export const Select = React.forwardRef(function Select({ className, children, ...props }, ref) {
+  return (
+    <select
+      ref={ref}
+      className={cn(CONTROL, stateRing(false), "h-9 pl-3 pr-8 text-[14px]", className)}
+      {...props}
+    >
+      {children}
+    </select>
+  );
+});
+
+export function Field({ label, hint, error, htmlFor, optional, children, className }) {
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label htmlFor={htmlFor} className="block t-sm font-medium text-muted">
+        <label htmlFor={htmlFor} className="block text-[14px] font-medium text-ink">
           {label}
+          {optional && <span className="font-normal text-faint"> (optional)</span>}
         </label>
       )}
       {children}
       {error ? (
-        <p className="t-xs text-bad">{error}</p>
+        <p className="t-sm text-bad">{error}</p>
       ) : hint ? (
-        <p className="t-xs text-faint">{hint}</p>
+        <p className="t-sm text-faint">{hint}</p>
       ) : null}
     </div>
   );

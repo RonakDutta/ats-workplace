@@ -4,116 +4,129 @@
 
 /* ---------------------------------------------------------------------------
    Palette
-   One neutral ramp, one blue accent, status colours reserved for candidate
-   scoring. Chart colours are an ordinal ramp of the same blue so the charts and
-   the interface read as one system.
-   Light and dark are two selected sets, not a mechanical inversion.
+   Values follow Cloudflare's Kumo design system, which the Cloudflare
+   dashboard is built on: a near white canvas, white panels outlined by a
+   translucent ring and a soft shadow, neutral greys, one blue for actions.
 --------------------------------------------------------------------------- */
 
 :root {
   color-scheme: light;
 
-  --canvas: #f6f6f7;
+  --canvas: oklch(98.75% 0 0);
   --surface: #ffffff;
-  --sunken: #f2f2f4;
+  --sunken: oklch(98% 0 0);
+  --recessed: oklch(96% 0 0);
   --overlay: #ffffff;
+  --hover: oklch(96.5% 0 0);
+  --fill: oklch(92.2% 0 0);
 
-  --line-soft: #efeff2;
-  --line: #e4e4e9;
-  --line-strong: #d3d3da;
+  --line-soft: oklch(93.5% 0 0);
+  --line: oklch(14.5% 0 0 / 0.1);
+  --line-strong: oklch(87% 0 0);
 
-  --ink: #17171a;
-  --muted: #5a5a63;
-  --faint: #8b8b94;
-  --ghost: #b4b4bd;
+  --ink: oklch(21% 0.006 285.885);
+  --muted: oklch(37% 0 0);
+  --faint: oklch(55.6% 0 0);
+  --ghost: oklch(70.8% 0 0);
 
-  /* Light runs on a graphite accent. Primary actions read as ink on paper
-     rather than as a coloured brand element. */
-  --accent: #1b1b1f;
-  --accent-hover: #000000;
-  --accent-soft: #f0f0f2;
-  --accent-line: #d5d5dc;
+  --accent: oklch(57.72% 0.2324 260);
+  --accent-hover: oklch(48.8% 0.243 264.376);
+  --accent-soft: oklch(93.2% 0.032 255.6 / 0.45);
+  --accent-line: oklch(57.72% 0.2324 260 / 0.35);
   --on-accent: #ffffff;
-  --focus: rgba(27, 27, 31, 0.26);
+  --link: oklch(42.4% 0.199 265.638);
+  --focus: oklch(15% 0 0 / 0.5);
 
-  /* Text-safe status colours, all at or above 4.5:1 on the light surface. */
-  --good: #0c7c43;
-  --good-soft: #e7f5ec;
-  --good-line: #c4e5d1;
-  --warn: #8a5a00;
-  --warn-soft: #fdf3e2;
-  --warn-line: #f2ddb6;
-  --bad: #b3271e;
-  --bad-soft: #fceded;
-  --bad-line: #f3cfcd;
+  --good: oklch(43.2% 0.095 166.913);
+  --good-soft: oklch(96.2% 0.043 156.7 / 0.57);
+  --good-line: oklch(59.6% 0.145 163.225 / 0.3);
+  --warn: oklch(52% 0.13 57.5);
+  --warn-soft: oklch(93.1% 0.107 94.6 / 0.3);
+  --warn-line: oklch(73.9% 0.177 58.2 / 0.35);
+  --bad: oklch(50.5% 0.213 27.518);
+  --bad-soft: oklch(93.6% 0.032 17.7 / 0.42);
+  --bad-line: oklch(63.7% 0.237 25.331 / 0.3);
 
-  /* Mark colours for dots and score rings. Amber cannot be both saturated and
-     text-contrast on white, so marks get their own step and the label beside
-     them carries the meaning. */
-  --good-mark: #12874a;
-  --warn-mark: #c98a12;
-  --bad-mark: #cc3a30;
+  --good-mark: oklch(59.6% 0.145 163.225);
+  --warn-mark: oklch(73.9% 0.177 58.2);
+  --bad-mark: oklch(63.7% 0.237 25.331);
 
-  /* Chart roles */
-  --chart-accent: #2a78d6;
-  --chart-tier-1: #1c5cab;
-  --chart-tier-2: #3987e5;
-  --chart-tier-3: #86b6ef;
-  --chart-grid: #ededf0;
-  --chart-axis: #8b8b94;
+  --chart-accent: oklch(57.72% 0.2324 260);
+  --chart-grid: oklch(93.5% 0 0);
+  --chart-axis: oklch(55.6% 0 0);
 
-  --scrim: rgba(17, 17, 20, 0.32);
-  --select-bg: #d9e7f9;
+  --art-bg: oklch(96.5% 0.018 255);
+  --art-line: oklch(57.72% 0.2324 260 / 0.08);
+  --petal-a: oklch(57.72% 0.2324 260);
+  --petal-b: oklch(70% 0.14 255);
+  --petal-c: oklch(86% 0.07 255);
+  --bloom: oklch(72% 0.17 52);
+  --bloom-soft: oklch(88% 0.09 60);
+  --leaf: oklch(62% 0.12 160);
+  --leaf-soft: oklch(80% 0.08 160);
+
+  --scrim: oklch(15% 0 0 / 0.35);
+  --select-bg: oklch(88% 0.06 255);
 }
 
 .dark {
   color-scheme: dark;
 
-  --canvas: #0b0b0d;
-  --surface: #151517;
-  --sunken: #1b1b1f;
-  --overlay: #1a1a1e;
+  --canvas: oklch(10% 0 0);
+  --surface: oklch(17% 0 0);
+  --sunken: oklch(14% 0 0);
+  --recessed: oklch(12.5% 0 0);
+  --overlay: oklch(20% 0 0);
+  --hover: oklch(23% 0 0);
+  --fill: oklch(26.9% 0 0);
 
-  --line-soft: #202024;
-  --line: #292930;
-  --line-strong: #3a3a43;
+  --line-soft: oklch(24% 0 0);
+  --line: oklch(30% 0 0);
+  --line-strong: oklch(37% 0 0);
 
-  --ink: #f5f5f7;
-  --muted: #a4a4ae;
-  --faint: #77777f;
-  --ghost: #55555c;
+  --ink: oklch(97% 0 0);
+  --muted: oklch(84% 0 0);
+  --faint: oklch(70.8% 0 0);
+  --ghost: oklch(52% 0 0);
 
-  /* Ink is unusable as an accent on a dark surface, so dark takes the blue. */
-  --accent: #4c8ef0;
-  --accent-hover: #6aa2f4;
-  --accent-soft: rgba(76, 142, 240, 0.16);
-  --accent-line: rgba(76, 142, 240, 0.34);
-  --on-accent: #0b0b0d;
-  --focus: rgba(76, 142, 240, 0.42);
+  --accent: oklch(55% 0.21 260);
+  --accent-hover: oklch(60% 0.2 260);
+  --accent-soft: oklch(38% 0.145 265.5 / 0.25);
+  --accent-line: oklch(70.7% 0.165 254.624 / 0.4);
+  --on-accent: #ffffff;
+  --link: oklch(70.7% 0.165 254.624);
+  --focus: oklch(93.5% 0 0 / 0.5);
 
-  --good: #45c97a;
-  --good-soft: rgba(69, 201, 122, 0.14);
-  --good-line: rgba(69, 201, 122, 0.28);
-  --warn: #e8a33d;
-  --warn-soft: rgba(232, 163, 61, 0.14);
-  --warn-line: rgba(232, 163, 61, 0.28);
-  --bad: #ff6b60;
-  --bad-soft: rgba(255, 107, 96, 0.14);
-  --bad-line: rgba(255, 107, 96, 0.28);
+  --good: oklch(90.5% 0.093 164.15);
+  --good-soft: oklch(39.3% 0.096 152.3 / 0.25);
+  --good-line: oklch(76.5% 0.177 163.223 / 0.3);
+  --warn: oklch(82% 0.14 65);
+  --warn-soft: oklch(35.3% 0.079 65 / 0.4);
+  --warn-line: oklch(75% 0.183 55.934 / 0.3);
+  --bad: oklch(76% 0.15 22.216);
+  --bad-soft: oklch(42.9% 0.176 28.7 / 0.22);
+  --bad-line: oklch(70.4% 0.191 22.216 / 0.3);
 
-  --good-mark: #45c97a;
-  --warn-mark: #e8a33d;
-  --bad-mark: #ff6b60;
+  --good-mark: oklch(76.5% 0.177 163.223);
+  --warn-mark: oklch(75% 0.183 55.934);
+  --bad-mark: oklch(70.4% 0.191 22.216);
 
-  --chart-accent: #3987e5;
-  --chart-tier-1: #9ec5f4;
-  --chart-tier-2: #5598e7;
-  --chart-tier-3: #256abf;
-  --chart-grid: #232329;
-  --chart-axis: #77777f;
+  --chart-accent: oklch(65% 0.19 258);
+  --chart-grid: oklch(24% 0 0);
+  --chart-axis: oklch(70.8% 0 0);
 
-  --scrim: rgba(0, 0, 0, 0.6);
-  --select-bg: rgba(57, 135, 229, 0.28);
+  --art-bg: oklch(17% 0.02 260);
+  --art-line: oklch(70% 0.15 255 / 0.08);
+  --petal-a: oklch(62% 0.2 260);
+  --petal-b: oklch(50% 0.17 262);
+  --petal-c: oklch(36% 0.11 262);
+  --bloom: oklch(72% 0.17 52);
+  --bloom-soft: oklch(52% 0.12 55);
+  --leaf: oklch(62% 0.12 160);
+  --leaf-soft: oklch(42% 0.08 160);
+
+  --scrim: oklch(0% 0 0 / 0.6);
+  --select-bg: oklch(45% 0.12 260 / 0.5);
 }
 
 @theme inline {
@@ -126,7 +139,11 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-sunken: var(--sunken);
+  --color-recessed: var(--recessed);
+  --color-fill: var(--fill);
+  --color-link: var(--link);
   --color-overlay: var(--overlay);
+  --color-hover: var(--hover);
 
   --color-line-soft: var(--line-soft);
   --color-line: var(--line);
@@ -159,26 +176,18 @@
 
   --color-scrim: var(--scrim);
 
-  /* Generous corner radii. Surfaces are grouped by shape and tone rather than
-     by drawing a box around everything. */
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-  --radius-2xl: 28px;
+  /* Kumo's radius ladder: 4, 6, 8 and 12. Controls, cards and menus use 8. */
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 
-  /* Elevation is reserved for things that genuinely float. Resting surfaces
-     separate through tone, not shadow. */
-  --shadow-xs: 0 1px 2px rgba(16, 17, 20, 0.04);
-  --shadow-sm: 0 1px 2px rgba(16, 17, 20, 0.05);
-  --shadow-md: 0 4px 14px -4px rgba(16, 17, 20, 0.1);
+  --shadow-xs: 0 1px 2px 0 oklch(0% 0 0 / 0.05);
+  --shadow-sm: 0 1px 3px 0 oklch(0% 0 0 / 0.08), 0 1px 2px -1px oklch(0% 0 0 / 0.08);
   --shadow-lg:
-    0 2px 6px -2px rgba(16, 17, 20, 0.06),
-    0 16px 40px -12px rgba(16, 17, 20, 0.2);
-
-  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+    0 0 0 1px oklch(0% 0 0 / 0.04), 0 4px 8px -2px oklch(0% 0 0 / 0.08),
+    0 16px 32px -8px oklch(0% 0 0 / 0.16);
 }
 
 @layer base {
@@ -196,30 +205,22 @@
     background-color: var(--canvas);
     color: var(--ink);
     font-family: var(--font-sans);
-    font-optical-sizing: auto;
+    font-size: 14px;
+    line-height: 1.5;
     font-feature-settings:
       "liga" 1,
-      "calt" 1;
-    letter-spacing: -0.006em;
+      "calt" 1,
+      "cv11" 1;
   }
 
   ::selection {
     background-color: var(--select-bg);
   }
 
-  h1,
-  h2,
-  h3,
-  h4 {
-    letter-spacing: -0.021em;
-  }
-
-  /* Rings never come for free; every interactive element opts into the same
-     focus treatment through :focus-visible only. */
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
-    border-radius: var(--radius-xs);
+    border-radius: var(--radius-md);
   }
 
   button,
@@ -233,91 +234,61 @@
 }
 
 @layer components {
-  /* Numbers that sit in columns or on axes align by digit. Standalone display
-     figures keep proportional widths on purpose. */
   .tnum {
     font-variant-numeric: tabular-nums;
   }
 
-  /* One type scale for the whole app. Sizes are set here rather than per
-     component so a heading is the same size wherever it appears, and the
-     document surfaces get a comfortable reading size instead of UI-chrome
-     sizing. */
+  /* Type scale. Sizes live here so a heading is the same size everywhere. */
   .t-display {
-    font-size: clamp(1.625rem, 1.25rem + 1.4vw, 2.0625rem);
-    line-height: 1.14;
-    letter-spacing: -0.026em;
-    font-weight: 600;
-  }
-  .t-title {
-    font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.4375rem);
-    line-height: 1.24;
+    font-size: 1.625rem;
+    line-height: 1.25;
     letter-spacing: -0.022em;
     font-weight: 600;
   }
-  .t-heading {
-    font-size: 1.0625rem;
+  .t-title {
+    font-size: 1.125rem;
     line-height: 1.35;
-    letter-spacing: -0.016em;
+    letter-spacing: -0.012em;
+    font-weight: 600;
+  }
+  .t-heading {
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    letter-spacing: -0.006em;
     font-weight: 600;
   }
   .t-body {
-    font-size: 0.9375rem;
-    line-height: 1.62;
-    letter-spacing: -0.008em;
+    font-size: 0.875rem;
+    line-height: 1.6;
   }
   .t-sm {
-    font-size: 0.84375rem;
+    font-size: 0.8125rem;
     line-height: 1.5;
-    letter-spacing: -0.004em;
   }
   .t-xs {
-    font-size: 0.78125rem;
+    font-size: 0.75rem;
     line-height: 1.45;
-    letter-spacing: 0;
   }
   .t-label {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.4;
-    letter-spacing: 0.03em;
     font-weight: 500;
-    text-transform: uppercase;
+    color: var(--faint);
   }
 
-  /* The light accent is ink, so a link needs the rule to read as a link. */
   .link {
-    color: var(--accent);
+    color: var(--link);
     font-weight: 500;
-    text-decoration: underline;
-    text-decoration-color: var(--line-strong);
     text-underline-offset: 3px;
-    transition: text-decoration-color 140ms var(--ease-out-soft);
   }
   .link:hover {
-    text-decoration-color: currentColor;
+    text-decoration: underline;
   }
 
-  /* A document page: white surface, generous radius, no resting shadow. */
-  .doc-surface {
-    background-color: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
-  }
-
-  /**
-   * Centering inside a scroll container.
-   *
-   * `justify-center` on an overflowing flex container pushes the first child
-   * past the scroll origin, so the top of the content becomes unreachable.
-   * This wrapper is at least as tall as the viewport and centres within that,
-   * so short content sits in the middle and tall content simply scrolls from
-   * the top.
-   */
-  .scroll-center {
-    min-height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+  /* Static placeholder block while data loads. It does not animate. */
+  .placeholder {
+    background-color: var(--recessed);
+    border-radius: var(--radius-md);
   }
 }
 
@@ -327,53 +298,20 @@
     scrollbar-color: var(--line-strong) transparent;
   }
   .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background-color: var(--line-strong);
+    border: 3px solid transparent;
     border-radius: 999px;
-    border: 2px solid transparent;
     background-clip: content-box;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--ghost);
-  }
-
-  .skeleton {
-    position: relative;
-    overflow: hidden;
-  }
-  .skeleton::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      var(--line-soft),
-      transparent
-    );
-    animation: shimmer 1.5s var(--ease-in-out-soft) infinite;
-  }
-
-  .animate-fade-in {
-    animation: fade-in 160ms var(--ease-out-soft) both;
-  }
-  .animate-scale-in {
-    animation: scale-in 180ms var(--ease-out-soft) both;
-  }
-  .animate-rise {
-    animation: rise 220ms var(--ease-out-soft) both;
   }
 }
 
-/* Once the control has opened its menu the hint is redundant, and leaving it up
-   means it pokes out from behind the panel. */
 .tip-root:has([aria-expanded="true"]) [role="tooltip"] {
   opacity: 0;
 }
@@ -385,12 +323,12 @@
   outline: none !important;
 }
 
-/* Range input, restyled end to end so it stops looking like browser chrome. */
+/* Range input restyled to match the square controls. */
 .range-track {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 26px;
+  height: 22px;
   background: transparent;
 }
 .range-track::-webkit-slider-runnable-track {
@@ -400,14 +338,14 @@
     to right,
     var(--accent) 0%,
     var(--accent) var(--range-progress, 50%),
-    var(--line) var(--range-progress, 50%),
-    var(--line) 100%
+    var(--fill) var(--range-progress, 50%),
+    var(--fill) 100%
   );
 }
 .range-track::-moz-range-track {
   height: 6px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--fill);
 }
 .range-track::-moz-range-progress {
   height: 6px;
@@ -417,79 +355,36 @@
 .range-track::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
-  margin-top: -7px;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
   border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: #fff;
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
-  transition: transform 140ms var(--ease-out-soft);
 }
 .range-track::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: #fff;
+  border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
-}
-.range-track:active::-webkit-slider-thumb {
-  transform: scale(1.12);
 }
 .range-track:focus-visible {
   outline: none;
 }
 .range-track:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 4px var(--focus);
+  box-shadow: 0 0 0 3px var(--focus);
 }
 .range-track:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 4px var(--focus);
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes shimmer {
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  box-shadow: 0 0 0 3px var(--focus);
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

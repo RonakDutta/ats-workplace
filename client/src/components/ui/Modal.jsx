@@ -67,7 +67,7 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-100 flex items-end sm:items-center justify-center p-0 sm:p-6">
       <div
-        className="absolute inset-0 bg-scrim backdrop-blur-[2px] animate-fade-in"
+        className="absolute inset-0 bg-scrim"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -79,8 +79,8 @@ export default function Modal({
         aria-describedby={describedBy}
         tabIndex={-1}
         className={cn(
-          "relative w-full sm:max-w-105 bg-overlay border border-line",
-          "rounded-t-xl sm:rounded-xl shadow-lg animate-scale-in focus:outline-none",
+          "relative w-full sm:max-w-110 bg-surface border border-line",
+          "rounded-t-xl sm:rounded-xl shadow-lg focus:outline-none",
           className,
         )}
       >
