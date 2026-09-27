@@ -1,89 +1,77 @@
 import React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
-import { LogOut, PanelLeft, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogOut, Menu as MenuIcon, Plus, Settings } from "lucide-react";
+import Logo from "./Logo";
+import Button from "./ui/Button";
 import Menu, { MenuItem, MenuSeparator } from "./ui/Menu";
 import Tooltip from "./ui/Tooltip";
 import { ThemeMenu } from "./ui/ThemeToggle";
-import { useConfirm } from "./ui/confirm-context";
-import { clearSession, getUser, initials } from "../lib/session";
-
-const SECTIONS = [
-  { match: (path) => path === "/", label: "Overview" },
-  { match: (path) => path === "/new", label: "New role" },
-  { match: (path) => path.startsWith("/role/"), label: "Role" },
-  { match: (path) => path.startsWith("/candidates"), label: "Talent pool" },
-  { match: (path) => path.startsWith("/metrics"), label: "Insights" },
-  { match: (path) => path.startsWith("/settings"), label: "Settings" },
-];
+import { getUser, initials } from "../lib/session";
+import useSignOut from "../lib/useSignOut";
 
 export default function TopBar({ onOpenNav }) {
-  const location = useLocation();
   const navigate = useNavigate();
-  const confirm = useConfirm();
+  const handleLogout = useSignOut();
   const user = getUser();
-
-  const section = SECTIONS.find((item) => item.match(location.pathname));
-
-  const handleLogout = async () => {
-    const ok = await confirm({
-      title: "Sign out of ATS Workplace?",
-      description: "You will need your credentials to get back in.",
-      confirmLabel: "Sign out",
-    });
-    if (!ok) return;
-    clearSession();
-    navigate("/auth");
-    toast.success("Signed out");
-  };
+  const firstName = user?.name?.trim().split(/\s+/)[0];
 
   return (
-    // Sits above the page level sticky bars so its menus are never painted over.
-    <header className="relative z-50 h-14 shrink-0 flex items-center gap-3 px-4 sm:px-6 border-b border-line bg-surface">
-      <Tooltip label="Navigation" className="lg:hidden">
-        <button
-          onClick={onOpenNav}
-          aria-label="Open navigation"
-          className="size-8 -ml-1 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-sunken transition-colors"
-        >
-          <PanelLeft className="size-4.5" />
-        </button>
-      </Tooltip>
+    // Sits above page level sticky bars so its menus are never painted over.
+    <header className="relative z-50 h-12 shrink-0 flex items-center gap-2 px-3 sm:px-4 border-b border-line bg-surface">
+      <button
+        onClick={onOpenNav}
+        aria-label="Open navigation"
+        className="lg:hidden size-8 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-hover"
+      >
+        <MenuIcon className="size-4.5" />
+      </button>
 
-      <p className="t-sm font-medium text-muted truncate">
-        {section?.label ?? "Workplace"}
-      </p>
+      <Link to="/" className="rounded-xs" aria-label="ATS Workplace home">
+        <Logo />
+      </Link>
 
-      <div className="ml-auto flex items-center gap-1">
+      {firstName && (
+        <div className="hidden sm:flex items-center gap-2 min-w-0">
+          <span className="text-ghost text-lg font-light" aria-hidden="true">
+            /
+          </span>
+          <span className="t-sm text-muted truncate">{firstName}'s workplace</span>
+        </div>
+      )}
+
+      <div className="ml-auto flex items-center gap-1.5">
+        <div className="hidden sm:block mr-1.5">
+          <Button size="sm" variant="primary" onClick={() => navigate("/new")}>
+            <Plus className="size-3.5" />
+            New role
+          </Button>
+        </div>
+
         <ThemeMenu />
 
         <Menu
-          width={232}
+          width={240}
           trigger={(props) => (
             <Tooltip label="Account">
               <button
                 {...props}
                 aria-label="Account menu"
-                className="size-8 rounded-full bg-sunken border border-line text-[11.5px] font-semibold text-muted hover:text-ink hover:border-line-strong transition-colors"
+                className="size-8 rounded-sm bg-sunken border border-line text-[11.5px] font-semibold text-muted hover:text-ink hover:border-line-strong"
               >
                 {initials(user?.name)}
               </button>
             </Tooltip>
           )}
         >
-          <div className="px-2.5 py-2">
+          <div className="px-3 py-2">
             <p className="t-sm font-medium text-ink truncate">
               {user?.name || "Signed in"}
             </p>
             {user?.email && (
-              <p className="t-xs text-faint truncate mt-0.5">
-                {user.email}
-              </p>
+              <p className="t-xs text-faint truncate mt-0.5">{user.email}</p>
             )}
           </div>
-
           <MenuSeparator />
-
           <MenuItem icon={Settings} onClick={() => navigate("/settings")}>
             Settings
           </MenuItem>

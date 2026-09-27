@@ -1,188 +1,46 @@
-import sys
-import spacy
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import logging
 from contextlib import asynccontextmanager
-import fitz 
-from sentence_transformers import SentenceTransformer, util
-import google.generativeai as genai
-import os
+
+import numpy as np
+import pymupdf
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from google import genai
+from google.genai import types
+from sentence_transformers import SentenceTransformer
+
+from skills import SkillExtractor
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("ml-service")
+
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+SUMMARY_MODEL = "gemini-2.5-flash-lite"
+
+# MiniLM reads at most 256 word pieces. Longer text is split into overlapping
+# windows of words that fit, so the whole resume is compared rather than only
+# its first paragraph.
+CHUNK_WORDS = 160
+CHUNK_STRIDE = 120
+
+# Raw cosine similarity between a resume and a job description sits in a narrow
+# band. These bounds map that band onto 0 to 100.
+SIMILARITY_FLOOR = 0.10
+SIMILARITY_CEILING = 0.40
+
+MAX_CANDIDATE_SKILLS = 8
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Loading SpaCy NLP model...")
-    try:
-        nlp = spacy.load("en_core_web_sm")
-
-        if "entity_ruler" not in nlp.pipe_names:
-            ruler = nlp.add_pipe("entity_ruler", before="ner")
-        else:
-            ruler = nlp.get_pipe("entity_ruler")
-
-       
-        SKILL_ALIASES = {
-            # ── Frontend ──────────────────────────────────────────────────
-            "react": "React", "react.js": "React", "reactjs": "React",
-            "vue": "Vue.js", "vue.js": "Vue.js", "vuejs": "Vue.js",
-            "angular": "Angular", "angularjs": "Angular", "angular.js": "Angular",
-            "next": "Next.js", "next.js": "Next.js", "nextjs": "Next.js",
-            "nuxt": "Nuxt.js", "nuxt.js": "Nuxt.js",
-            "svelte": "Svelte", "sveltekit": "SvelteKit",
-            "html": "HTML", "html5": "HTML",
-            "css": "CSS", "css3": "CSS",
-            "tailwind": "Tailwind CSS", "tailwindcss": "Tailwind CSS",
-            "bootstrap": "Bootstrap",
-            "sass": "Sass", "scss": "Sass",
-            "jquery": "jQuery",
-            "webpack": "Webpack", "vite": "Vite",
-
-            # ── Languages ─────────────────────────────────────────────────
-            "js": "JavaScript", "javascript": "JavaScript",
-            "ts": "TypeScript", "typescript": "TypeScript",
-            "py": "Python", "python": "Python", "python3": "Python",
-            "cpp": "C++", "c++": "C++", "c/c++": "C++",
-            "c": "C",
-            "cs": "C#", "c#": "C#", "csharp": "C#",
-            "java": "Java",
-            "kotlin": "Kotlin", "kt": "Kotlin",
-            "swift": "Swift",
-            "go": "Go", "golang": "Go",
-            "rs": "Rust", "rust": "Rust",
-            "rb": "Ruby", "ruby": "Ruby",
-            "php": "PHP",
-            "scala": "Scala",
-            "r": "R",
-            "matlab": "MATLAB",
-            "perl": "Perl",
-            "bash": "Bash", "shell": "Bash", "sh": "Bash", "shell scripting": "Bash",
-            "dart": "Dart",
-
-            # ── Backend / Frameworks ───────────────────────────────────────
-            "node": "Node.js", "node.js": "Node.js", "nodejs": "Node.js",
-            "express": "Express.js", "express.js": "Express.js", "expressjs": "Express.js",
-            "django": "Django",
-            "flask": "Flask",
-            "fastapi": "FastAPI",
-            "spring": "Spring Boot", "spring boot": "Spring Boot", "springboot": "Spring Boot",
-            "rails": "Ruby on Rails", "ruby on rails": "Ruby on Rails", "ror": "Ruby on Rails",
-            "laravel": "Laravel",
-            "dotnet": ".NET", ".net": ".NET", "asp.net": ".NET", "asp": ".NET",
-            "nestjs": "NestJS", "nest.js": "NestJS",
-            "graphql": "GraphQL",
-            "rest": "REST APIs", "rest api": "REST APIs", "restful": "REST APIs",
-            "grpc": "gRPC",
-
-            # ── Databases ─────────────────────────────────────────────────
-            "postgres": "PostgreSQL", "postgresql": "PostgreSQL",
-            "mysql": "MySQL",
-            "sqlite": "SQLite",
-            "mssql": "SQL Server", "sql server": "SQL Server", "microsoft sql server": "SQL Server",
-            "oracle": "Oracle DB", "oracle db": "Oracle DB",
-            "mongo": "MongoDB", "mongodb": "MongoDB",
-            "redis": "Redis",
-            "elastic": "Elasticsearch", "elasticsearch": "Elasticsearch",
-            "cassandra": "Cassandra", "apache cassandra": "Cassandra",
-            "dynamodb": "DynamoDB", "dynamo": "DynamoDB",
-            "firebase": "Firebase", "firestore": "Firebase",
-            "neo4j": "Neo4j",
-            "sql": "SQL",
-            "nosql": "NoSQL",
-
-            # ── Cloud & DevOps ────────────────────────────────────────────
-            "aws": "AWS", "amazon web services": "AWS",
-            "gcp": "GCP", "google cloud": "GCP", "google cloud platform": "GCP",
-            "azure": "Azure", "microsoft azure": "Azure",
-            "docker": "Docker",
-            "k8s": "Kubernetes", "kubernetes": "Kubernetes",
-            "terraform": "Terraform",
-            "ansible": "Ansible",
-            "jenkins": "Jenkins",
-            "github actions": "GitHub Actions", "gh actions": "GitHub Actions",
-            "gitlab ci": "GitLab CI/CD", "gitlab ci/cd": "GitLab CI/CD",
-            "circleci": "CircleCI",
-            "helm": "Helm",
-            "nginx": "Nginx",
-            "linux": "Linux",
-            "ci/cd": "CI/CD", "ci cd": "CI/CD",
-
-            # ── ML / AI ───────────────────────────────────────────────────
-            "ml": "Machine Learning", "machine learning": "Machine Learning",
-            "dl": "Deep Learning", "deep learning": "Deep Learning",
-            "ai": "Artificial Intelligence", "artificial intelligence": "Artificial Intelligence",
-            "nlp": "NLP", "natural language processing": "NLP",
-            "cv": "Computer Vision", "computer vision": "Computer Vision",
-            "tf": "TensorFlow", "tensorflow": "TensorFlow",
-            "pytorch": "PyTorch", "torch": "PyTorch",
-            "keras": "Keras",
-            "sklearn": "Scikit-learn", "scikit-learn": "Scikit-learn", "scikit learn": "Scikit-learn",
-            "xgboost": "XGBoost", "xgb": "XGBoost",
-            "huggingface": "Hugging Face", "hugging face": "Hugging Face", "hf": "Hugging Face",
-            "langchain": "LangChain",
-            "openai": "OpenAI API",
-            "llm": "LLMs", "large language model": "LLMs", "large language models": "LLMs",
-            "rag": "RAG",
-            "pandas": "Pandas", "pd": "Pandas",
-            "numpy": "NumPy", "np": "NumPy",
-            "matplotlib": "Matplotlib",
-            "seaborn": "Seaborn",
-            "scipy": "SciPy",
-            "jupyter": "Jupyter",
-            "spark": "Apache Spark", "apache spark": "Apache Spark", "pyspark": "Apache Spark",
-            "hadoop": "Hadoop",
-            "mlflow": "MLflow",
-            "dvc": "DVC",
-
-            # ── Data & Analytics ──────────────────────────────────────────
-            "powerbi": "Power BI", "power bi": "Power BI",
-            "tableau": "Tableau",
-            "excel": "Excel",
-            "looker": "Looker",
-            "dbt": "dbt",
-            "airflow": "Apache Airflow", "apache airflow": "Apache Airflow",
-            "kafka": "Apache Kafka", "apache kafka": "Apache Kafka",
-
-            # ── Tools & Practices ─────────────────────────────────────────
-            "git": "Git",
-            "github": "GitHub",
-            "gitlab": "GitLab",
-            "jira": "Jira",
-            "figma": "Figma",
-            "dsa": "Data Structures", "data structures": "Data Structures",
-            "data structures and algorithms": "Data Structures",
-            "oop": "OOP", "object oriented": "OOP", "object-oriented": "OOP",
-            "agile": "Agile", "scrum": "Agile/Scrum",
-            "tdd": "TDD", "test driven development": "TDD",
-            "microservices": "Microservices",
-            "system design": "System Design",
-
-            # ── Mobile ────────────────────────────────────────────────────
-            "react native": "React Native", "rn": "React Native",
-            "flutter": "Flutter",
-            "android": "Android",
-            "ios": "iOS",
-        }
-
-        patterns = [{"label": "SKILL", "pattern": key} for key in SKILL_ALIASES.keys()]
-        ruler.add_patterns(patterns)
-
-        app.state.nlp = nlp
-        app.state.skill_aliases = SKILL_ALIASES
-        print("✅ SpaCy model ready.")
-
-    except Exception as e:
-        print(f"❌ Failed to load SpaCy model: {e}")
-        sys.exit(1)
-
-    print("Loading Hugging Face semantic model...")
-    try:
-        app.state.semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
-        print("✅ Semantic model ready.")
-    except Exception as e:
-        print(f"❌ Failed to load semantic model: {e}")
-        sys.exit(1)
-
+    log.info("Loading skill extractor")
+    app.state.skills = SkillExtractor()
+    log.info("Loading embedding model %s", EMBEDDING_MODEL)
+    app.state.embedder = SentenceTransformer(EMBEDDING_MODEL)
+    log.info("Models ready")
     yield
-  
+
+
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
@@ -191,120 +49,147 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def extract_text_from_pdf(file_bytes: bytes) -> str:
+
+def extract_text_from_pdf(data: bytes) -> str:
     try:
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        full_text = ""
-
-        for page in doc:
-   
-            blocks = page.get_text("blocks")
-
-      
-            blocks.sort(key=lambda b: (b[1], b[0]))
-
-            for block in blocks:
-                full_text += block[4] + "\n"  
-
-        return full_text.strip()
-
-    except Exception as e:
-        print(f"PDF extraction error: {e}")
+        with pymupdf.open(stream=data, filetype="pdf") as doc:
+            # sort=True reads blocks top to bottom, left to right.
+            return "\n".join(page.get_text("text", sort=True) for page in doc).strip()
+    except Exception as error:
+        log.warning("PDF extraction failed: %s", error)
         return ""
 
 
-def get_normalized_skills(text: str, nlp, skill_aliases: dict) -> set[str]:
-    doc = nlp(text.lower())
-    skills = set()
+def chunk_words(text: str) -> list[str]:
+    words = text.split()
+    if len(words) <= CHUNK_WORDS:
+        return [" ".join(words)]
+    return [
+        " ".join(words[start:start + CHUNK_WORDS])
+        for start in range(0, len(words) - CHUNK_WORDS + CHUNK_STRIDE, CHUNK_STRIDE)
+    ]
 
-    for ent in doc.ents:
-        if ent.label_ == "SKILL":
-            canonical = skill_aliases.get(ent.text, ent.text.title())
-            skills.add(canonical)
 
-    return skills
+def embed_document(embedder: SentenceTransformer, text: str) -> np.ndarray:
+    """One unit vector for a whole document: the mean of its chunk embeddings."""
+    vectors = embedder.encode(chunk_words(text), normalize_embeddings=True)
+    mean = vectors.mean(axis=0)
+    return mean / (np.linalg.norm(mean) or 1.0)
 
+
+def similarity_score(embedder: SentenceTransformer, a: str, b: str) -> float:
+    raw = float(np.dot(embed_document(embedder, a), embed_document(embedder, b)))
+    scaled = (raw - SIMILARITY_FLOOR) / (SIMILARITY_CEILING - SIMILARITY_FLOOR)
+    return min(1.0, max(0.0, scaled)) * 100
+
+
+def fallback_summary(score: int, matched: list[str], missing: list[str]) -> str:
+    if not matched and not missing:
+        return f"Scored {score}% on overall similarity to the job description. No specific required skills were detected in it."
+    parts = []
+    if matched:
+        parts.append(f"Covers {len(matched)} of {len(matched) + len(missing)} required skills, including {', '.join(matched[:3])}.")
+    if missing:
+        parts.append(f"Missing {', '.join(missing[:3])}{' and others' if len(missing) > 3 else ''}.")
+    else:
+        parts.append("Every required skill is present.")
+    return " ".join(parts)
+
+
+def write_summary(api_key: str, score: int, required: list[str], matched: list[str], missing: list[str]) -> str | None:
+    prompt = (
+        "You are an experienced technical recruiter reviewing a resume.\n\n"
+        f"Skills the job requires: {', '.join(required) or 'none listed'}\n"
+        f"Required skills the candidate has: {', '.join(matched) or 'none'}\n"
+        f"Required skills the candidate lacks: {', '.join(missing) or 'none'}\n"
+        f"Overall match score: {score}%\n\n"
+        "Write exactly two short sentences on whether this candidate is a good fit. "
+        "Be direct and name specific skills. Plain text only, no dashes or bullet points."
+    )
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=SUMMARY_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=160,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            ),
+        )
+        text = (response.text or "").strip()
+        return text or None
+    except Exception as error:
+        log.warning("Summary generation failed: %s", error)
+        return None
+
+
+# A plain def runs in FastAPI's threadpool. The work here is CPU bound and the
+# Gemini call blocks, so an async def would stall every other request.
 @app.post("/api/match")
-async def calculate_match(
+def calculate_match(
     description: str = Form(...),
     file: UploadFile = File(...),
     api_key: str = Form(...),
-    strictness: int = Form(50), 
+    strictness: int = Form(50),
 ):
-  
-    nlp = app.state.nlp
-    skill_aliases = app.state.skill_aliases
-    semantic_model = app.state.semantic_model
+    description = description.strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="The job description is empty.")
 
-    resume_bytes = await file.read()
-    resume_text = extract_text_from_pdf(resume_bytes)
+    resume_text = extract_text_from_pdf(file.file.read())
+    if not resume_text:
+        raise HTTPException(
+            status_code=400,
+            detail="No text could be read from this PDF. Scanned image PDFs are not supported.",
+        )
 
-    if not resume_text or not description:
-        raise HTTPException(status_code=400, detail="Could not read resume or job description is empty.")
+    extractor: SkillExtractor = app.state.skills
+    required = extractor.extract(description)
+    found = extractor.extract(resume_text)
+    matched = sorted(required & found)
+    missing = sorted(required - found)
 
-    # spacy
-    jd_skills = get_normalized_skills(description, nlp, skill_aliases)
-    resume_skills = get_normalized_skills(resume_text, nlp, skill_aliases)
+    semantic = similarity_score(app.state.embedder, description, resume_text)
 
-    matched_skills = jd_skills & resume_skills   # skills in both
-    missing_skills = jd_skills - resume_skills   # skills JD wants but resume lacks
-
-    if jd_skills:
-        skill_score = (len(matched_skills) / len(jd_skills)) * 100
+    if required:
+        keyword = len(matched) / len(required) * 100
+        keyword_weight = min(100, max(0, strictness)) / 100
     else:
-        skill_score = 100.0
-    jd_embedding = semantic_model.encode(description, convert_to_tensor=True)
-    resume_embedding = semantic_model.encode(resume_text, convert_to_tensor=True)
-    raw_similarity = util.cos_sim(jd_embedding, resume_embedding).item()
+        # No recognised skills in the description means there is nothing to
+        # match against, so the score rests on similarity alone instead of
+        # handing every resume a free 100 on the keyword side.
+        keyword, keyword_weight = 0.0, 0.0
 
-    MIN_RAW_SCORE = 0.10
-    MAX_RAW_SCORE = 0.40
+    score = round(keyword * keyword_weight + semantic * (1 - keyword_weight))
+    score = min(100, max(0, score))
 
-    if raw_similarity <= MIN_RAW_SCORE:
-        context_score = 0.0
-    elif raw_similarity >= MAX_RAW_SCORE:
-        context_score = 100.0
-    else:
-        context_score = ((raw_similarity - MIN_RAW_SCORE) / (MAX_RAW_SCORE - MIN_RAW_SCORE)) * 100
-    keyword_weight = strictness / 100.0
-    semantic_weight = 1.0 - keyword_weight
+    summary = write_summary(api_key, score, sorted(required), matched, missing)
 
-    final_score = round((skill_score * keyword_weight) + (context_score * semantic_weight))
-    final_score = max(0, min(100, final_score))  
-
-    summary_text = "AI summary unavailable."
-    try:
-        genai.configure(api_key=api_key)
-        gemini = genai.GenerativeModel('gemini-2.5-flash-lite')
-
-        prompt = f"""
-        You are an expert technical recruiter reviewing a candidate's resume.
-
-        Job requires: {', '.join(sorted(jd_skills))}
-        Candidate has: {', '.join(sorted(matched_skills))}
-        Candidate is missing: {', '.join(sorted(missing_skills))}
-        Overall match score: {final_score}%
-
-        Write exactly TWO short sentences summarizing whether this candidate is
-        a good fit. Be direct and specific — mention actual skill names.
-        """
-
-        response = gemini.generate_content(prompt)
-        summary_text = response.text.strip()
-
-    except Exception as e:
-        print(f"Gemini API error: {e}")
-
-    sorted_candidate_skills = sorted(resume_skills, key=lambda s: s not in matched_skills)
+    # Matched skills first, then the rest of what the resume mentions.
+    candidate_skills = matched + sorted(found - required)
 
     return {
         "filename": file.filename,
-        "score": final_score,
-        "matched_skills": sorted(matched_skills),
-        "missing_skills": sorted(missing_skills),
-        "all_candidate_skills": sorted_candidate_skills[:8], 
-        "ai_summary": summary_text,
+        "score": score,
+        "matched_skills": matched,
+        "missing_skills": missing,
+        "all_candidate_skills": candidate_skills[:MAX_CANDIDATE_SKILLS],
+        "ai_summary": summary or fallback_summary(score, matched, missing),
+        "breakdown": {
+            "keyword_score": round(keyword),
+            "semantic_score": round(semantic),
+            "keyword_weight": keyword_weight,
+        },
     }
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

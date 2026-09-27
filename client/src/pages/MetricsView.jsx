@@ -1,28 +1,45 @@
 import React, { useEffect, useState } from "react";
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   LabelList,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, PieChart as PieIcon, TrendingUp } from "lucide-react";
 import PageHeader, { Page } from "../components/PageHeader";
 import { Card, CardHeader } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
 import Skeleton from "../components/ui/Skeleton";
 import { fetchSystemMetrics } from "../services/api";
+import { getStrictness } from "../lib/settings";
+import { describeStrictness } from "../lib/strictness";
 import useChartTheme from "../lib/useChartTheme";
+import { cn } from "../lib/cn";
 
-const AXIS_FONT_SIZE = 11;
+const DAYS = 7;
+const TICK = { fontSize: 12 };
+
+/**
+ * The endpoint only returns days that had activity, labelled "Mon DD". A week
+ * with gaps is still a week, so every day is laid out and missing ones are 0.
+ */
+function fillWeek(rows) {
+  const counts = new Map(rows.map((row) => [row.date, Number(row.count) || 0]));
+  const today = new Date();
+  return Array.from({ length: DAYS }, (_, index) => {
+    const day = new Date(today);
+    day.setDate(today.getDate() - (DAYS - 1 - index));
+    const key = `${day.toLocaleString("en-US", { month: "short" })} ${String(day.getDate()).padStart(2, "0")}`;
+    return {
+      date: key,
+      label: day.toLocaleDateString(undefined, { weekday: "short" }),
+      count: counts.get(key) ?? 0,
+    };
+  });
+}
 
 export default function MetricsView() {
   const [metrics, setMetrics] = useState(null);
@@ -36,115 +53,130 @@ export default function MetricsView() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  if (isLoading) return <MetricsSkeleton />;
+  const header = (
+    <PageHeader
+      crumbs={[{ label: "Overview", to: "/" }, { label: "Insights" }]}
+      title="Insights"
+      description="How analysed candidates are scoring and which required skills are most often missing."
+    />
+  );
+
+  if (isLoading) return <MetricsSkeleton header={header} />;
 
   if (!metrics) {
     return (
       <Page>
-        <PageHeader title="Insights" />
-        <Card className="mt-8">
+        {header}
+        <Card>
           <EmptyState
-            icon={BarChart3}
-            title="Metrics are unavailable"
-            description="We could not reach the analytics endpoint. Try again in a moment."
+            title="Insights are unavailable"
+            description="The analytics endpoint could not be reached. Try again in a moment."
           />
         </Card>
       </Page>
     );
   }
 
-  const strictness = localStorage.getItem("ml_strictness") ?? "50";
-  const skillGap = metrics.skillGap ?? [];
-  const volume = metrics.volume ?? [];
+  const strictness = getStrictness();
+  const skillGap = (metrics.skillGap ?? []).map((row) => ({
+    skill: row.skill,
+    count: Number(row.count) || 0,
+  }));
+  const week = fillWeek(metrics.volume ?? []);
+  const weekTotal = week.reduce((sum, day) => sum + day.count, 0);
 
-  // Ordered tiers, so the chart uses a single-hue ordinal ramp rather than a
-  // red/green pair that collapses under the most common colour-vision deficiency.
   const tiers = [
     {
       name: "Strong match",
-      range: "80% and above",
+      range: "80 and above",
       value: Number(metrics.distribution?.top_tier) || 0,
-      color: colors.tier1,
+      color: colors.good,
     },
     {
       name: "Possible match",
-      range: "60 to 79%",
+      range: "60 to 79",
       value: Number(metrics.distribution?.good_fit) || 0,
-      color: colors.tier2,
+      color: colors.warn,
     },
     {
       name: "Weak match",
-      range: "below 60%",
+      range: "Below 60",
       value: Number(metrics.distribution?.poor_fit) || 0,
-      color: colors.tier3,
+      color: colors.bad,
     },
   ];
   const tierTotal = tiers.reduce((sum, tier) => sum + tier.value, 0);
 
   return (
     <Page>
-      <PageHeader
-        title="Insights"
-        description="How your pipeline is distributed and what the market keeps missing."
-      />
+      {header}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-7">
-        <StatTile label="Candidates analysed" value={metrics.kpis?.total_candidates} />
-        <StatTile label="Active roles" value={metrics.kpis?.total_roles} />
-        <StatTile label="Average match" value={metrics.kpis?.avg_score} unit="%" />
-        <StatTile label="Engine strictness" value={strictness} unit="%" />
-      </div>
+      <Card className="grid grid-cols-2 lg:grid-cols-4">
+        <Stat label="Candidates analysed" value={metrics.kpis?.total_candidates ?? 0} />
+        <Stat
+          label="Active roles"
+          value={metrics.kpis?.total_roles ?? 0}
+          className="border-l border-line"
+        />
+        <Stat
+          label="Average match"
+          value={metrics.kpis?.avg_score ?? "None"}
+          unit={metrics.kpis?.avg_score != null ? "%" : undefined}
+          className="border-t lg:border-t-0 lg:border-l border-line"
+        />
+        <Stat
+          label="Strictness"
+          value={strictness}
+          unit={describeStrictness(strictness).name}
+          className="border-t lg:border-t-0 border-l border-line"
+        />
+      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">
         <Card className="lg:col-span-3">
           <CardHeader
             title="Most common skill gaps"
-            description="How often each skill was missing across every analysed resume."
+            description="Required skills most often missing, counted across every analysed resume."
           />
           {skillGap.length === 0 ? (
             <EmptyState
-              icon={BarChart3}
               title="No gaps recorded yet"
               description="Analyse a batch of resumes and the skills they lack will rank here."
             />
           ) : (
-            <div
-              className="px-4 pb-5"
-              // Sized to sit level with the distribution card beside it. Bars stay
-              // capped at 18px, so extra height becomes air rather than thicker marks.
-              style={{ height: Math.max(280, skillGap.length * 40) }}
-            >
+            <div className="px-3 pb-4 pt-2" style={{ height: 32 + skillGap.length * 40 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={skillGap}
                   layout="vertical"
-                  margin={{ top: 4, right: 40, left: 4, bottom: 0 }}
+                  margin={{ top: 0, right: 44, left: 8, bottom: 0 }}
+                  barCategoryGap={12}
                 >
-                  <XAxis type="number" hide />
+                  <XAxis type="number" hide domain={[0, "dataMax"]} />
                   <YAxis
                     dataKey="skill"
                     type="category"
                     axisLine={false}
                     tickLine={false}
-                    width={112}
-                    tick={{ fill: colors.axis, fontSize: 12 }}
+                    width={124}
+                    tick={{ ...TICK, fill: colors.muted }}
                   />
                   <Tooltip
-                    content={<ChartTooltip unit="resumes" />}
-                    cursor={{ fill: colors.grid }}
+                    content={<ChartTooltip unit="resume" />}
+                    cursor={{ fill: colors.hover }}
+                    isAnimationActive={false}
                   />
                   <Bar
                     dataKey="count"
-                    name="Missing in"
                     fill={colors.accent}
                     radius={[0, 4, 4, 0]}
-                    barSize={18}
+                    maxBarSize={18}
                     isAnimationActive={false}
                   >
                     <LabelList
                       dataKey="count"
                       position="right"
-                      offset={10}
+                      offset={8}
                       fill={colors.muted}
                       fontSize={12}
                     />
@@ -158,194 +190,166 @@ export default function MetricsView() {
         <Card className="lg:col-span-2">
           <CardHeader
             title="Score distribution"
-            description="Where your analysed candidates land."
+            description="Where analysed candidates land by verdict."
           />
           {tierTotal === 0 ? (
             <EmptyState
-              icon={PieIcon}
-              title="Nothing to distribute"
-              description="Scores appear here once the engine has run at least once."
+              title="Nothing to show yet"
+              description="Scores appear here once at least one resume has been analysed."
             />
           ) : (
-            <div className="px-6 pb-6">
-              <div className="relative h-45">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={tiers}
-                      dataKey="value"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={58}
-                      outerRadius={84}
-                      startAngle={90}
-                      endAngle={-270}
-                      paddingAngle={1.5}
-                      stroke={colors.surface}
-                      strokeWidth={2}
-                      isAnimationActive={false}
-                    >
-                      {tiers.map((tier) => (
-                        <Cell key={tier.name} fill={tier.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip unit="candidates" />} />
-                  </PieChart>
-                </ResponsiveContainer>
+            <div className="px-5 pt-4 pb-5">
+              <p className="text-[28px] font-semibold leading-none tracking-[-0.02em]">
+                {tierTotal}
+                <span className="t-sm text-faint font-normal ml-1.5 tracking-normal">
+                  candidates
+                </span>
+              </p>
 
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[32px] font-semibold leading-none tracking-[-0.026em]">
-                    {tierTotal}
-                  </span>
-                  <span className="t-xs text-faint mt-2">candidates</span>
-                </div>
+              <div
+                className="flex h-3 gap-0.5 mt-4"
+                role="img"
+                aria-label={tiers.map((tier) => `${tier.name}: ${tier.value}`).join(", ")}
+              >
+                {tiers
+                  .filter((tier) => tier.value > 0)
+                  .map((tier, index, shown) => (
+                    <div
+                      key={tier.name}
+                      title={`${tier.name}: ${tier.value}`}
+                      className={cn(
+                        index === 0 && "rounded-l-sm",
+                        index === shown.length - 1 && "rounded-r-sm",
+                      )}
+                      style={{ flexGrow: tier.value, backgroundColor: tier.color }}
+                    />
+                  ))}
               </div>
 
-              <ul className="mt-5 space-y-2.5">
-                {tiers.map((tier) => (
-                  <li key={tier.name} className="flex items-center gap-2.5">
-                    <span
-                      className="size-2.5 rounded-[3px] shrink-0"
-                      style={{ backgroundColor: tier.color }}
-                      aria-hidden="true"
-                    />
-                    <span className="t-sm text-muted flex-1 min-w-0 truncate">
-                      {tier.name}
-                      <span className="text-ghost"> {tier.range}</span>
-                    </span>
-                    <span className="t-sm font-medium tnum shrink-0">
-                      {tier.value}
-                    </span>
-                    <span className="t-xs text-ghost tnum w-9 text-right shrink-0">
-                      {Math.round((tier.value / tierTotal) * 100)}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <table className="w-full mt-5 t-sm">
+                <thead>
+                  <tr className="border-b border-line text-left">
+                    <th className="pb-2 t-xs font-semibold text-faint">Verdict</th>
+                    <th className="pb-2 t-xs font-semibold text-faint text-right">Count</th>
+                    <th className="pb-2 t-xs font-semibold text-faint text-right w-14">Share</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {tiers.map((tier) => (
+                    <tr key={tier.name}>
+                      <td className="py-2.5">
+                        <span className="flex items-center gap-2.5">
+                          <span
+                            className="w-3 h-3 rounded-xs shrink-0"
+                            style={{ backgroundColor: tier.color }}
+                            aria-hidden="true"
+                          />
+                          <span>
+                            {tier.name}
+                            <span className="block t-xs text-faint">{tier.range}</span>
+                          </span>
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right font-mono tnum">{tier.value}</td>
+                      <td className="py-2.5 text-right font-mono tnum text-faint">
+                        {Math.round((tier.value / tierTotal) * 100)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>
       </div>
 
-      <Card className="mt-4">
+      <Card className="mt-5">
         <CardHeader
-          title="Processing volume"
-          description="Resumes analysed over the last seven days."
+          title="Resumes analysed per day"
+          description={`Last ${DAYS} days. ${weekTotal} in total.`}
         />
-        {volume.length === 0 ? (
-          <EmptyState
-            icon={TrendingUp}
-            title="No activity yet"
-            description="Daily throughput appears once resumes start coming through."
-          />
-        ) : (
-          <div className="px-4 pb-5 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={volume}
-                margin={{ top: 8, right: 12, left: -14, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="volumeWash" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={colors.accent} stopOpacity={0.12} />
-                    <stop offset="100%" stopColor={colors.accent} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  vertical={false}
-                  stroke={colors.grid}
-                  strokeWidth={1}
-                />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  dy={8}
-                  tick={{ fill: colors.axis, fontSize: AXIS_FONT_SIZE }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                  width={44}
-                  tick={{ fill: colors.axis, fontSize: AXIS_FONT_SIZE }}
-                />
-                <Tooltip
-                  content={<ChartTooltip unit="resumes" />}
-                  cursor={{ stroke: colors.grid, strokeWidth: 1 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  name="Analysed"
-                  stroke={colors.accent}
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="url(#volumeWash)"
-                  dot={false}
-                  activeDot={{
-                    r: 4,
-                    fill: colors.accent,
-                    stroke: colors.surface,
-                    strokeWidth: 2,
-                  }}
-                  isAnimationActive={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <div className="px-3 pt-4 pb-4 h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={week} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke={colors.grid} />
+              <XAxis
+                dataKey="date"
+                axisLine={{ stroke: colors.grid }}
+                tickLine={false}
+                dy={6}
+                tick={{ ...TICK, fill: colors.axis }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+                width={40}
+                tick={{ ...TICK, fill: colors.axis }}
+              />
+              <Tooltip
+                content={<ChartTooltip unit="resume" />}
+                cursor={{ fill: colors.hover }}
+                isAnimationActive={false}
+              />
+              <Bar
+                dataKey="count"
+                fill={colors.accent}
+                radius={[4, 4, 0, 0]}
+                maxBarSize={24}
+                minPointSize={0}
+                isAnimationActive={false}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </Card>
     </Page>
   );
 }
 
-function StatTile({ label, value, unit }) {
+function Stat({ label, value, unit, className }) {
   return (
-    <Card className="px-6 py-5 rounded-lg">
+    <div className={cn("px-5 py-4", className)}>
       <p className="t-sm text-faint">{label}</p>
-      <p className="text-[30px] font-semibold leading-none mt-3 tracking-[-0.026em]">
-        {value ?? 0}
-        {unit && <span className="text-[18px] text-faint ml-0.5">{unit}</span>}
-      </p>
-    </Card>
-  );
-}
-
-function ChartTooltip({ active, payload, label, unit }) {
-  if (!active || !payload?.length) return null;
-  const point = payload[0];
-  const name = label ?? point.payload?.name ?? point.name;
-
-  return (
-    <div className="bg-overlay border border-line rounded-md shadow-lg px-3 py-2">
-      <p className="t-xs text-faint">{name}</p>
-      <p className="t-sm font-medium text-ink mt-0.5 tnum">
-        {point.value} {unit}
+      <p className="text-[24px] font-semibold leading-tight mt-1 tracking-[-0.02em]">
+        {value}
+        {unit && <span className="text-[14px] text-faint font-normal ml-1 tracking-normal">{unit}</span>}
       </p>
     </div>
   );
 }
 
-function MetricsSkeleton() {
+function ChartTooltip({ active, payload, label, unit }) {
+  if (!active || !payload?.length) return null;
+  const value = Number(payload[0].value) || 0;
+
+  return (
+    <div className="bg-overlay border border-line rounded-sm shadow-lg px-3 py-2">
+      <p className="t-xs text-faint">{label}</p>
+      <p className="t-sm font-medium text-ink mt-0.5">
+        <span className="font-mono tnum">{value}</span> {value === 1 ? unit : `${unit}s`}
+      </p>
+    </div>
+  );
+}
+
+function MetricsSkeleton({ header }) {
   return (
     <Page>
-      <Skeleton className="h-9 w-52 rounded-md" />
-      <Skeleton className="h-4 w-80 rounded-sm mt-4" />
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-7">
+      {header}
+      <Card className="grid grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-25 rounded-lg" />
+          <div key={index} className="px-5 py-4">
+            <Skeleton className="w-24 h-3.5" />
+            <Skeleton className="w-14 h-7 mt-2" />
+          </div>
         ))}
+      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">
+        <Card className="lg:col-span-3 h-80" />
+        <Card className="lg:col-span-2 h-80" />
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
-        <Skeleton className="lg:col-span-3 h-84 rounded-lg" />
-        <Skeleton className="lg:col-span-2 h-84 rounded-lg" />
-      </div>
-
-      <Skeleton className="h-72 rounded-lg mt-5" />
+      <Card className="h-80 mt-5" />
     </Page>
   );
 }

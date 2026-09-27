@@ -110,8 +110,7 @@ export default function Menu({ trigger, align = "end", width = 224, children }) 
             }}
             className={cn(
               // Above the mobile drawer, below the confirm dialog.
-              "z-95 p-1.5 bg-overlay border border-line rounded-md shadow-lg",
-              "animate-scale-in origin-top",
+              "z-95 py-1 bg-overlay border border-line rounded-sm shadow-lg",
             )}
             onClick={() => setOpen(false)}
           >
@@ -136,18 +135,17 @@ export function MenuItem({
     <button
       role="menuitem"
       className={cn(
-        "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-xs text-[13.5px] font-medium text-left",
-        "transition-colors duration-100",
+        "w-full flex items-center gap-2.5 px-3 h-8.5 text-[13px] text-left",
         danger
           ? "text-bad hover:bg-bad-soft"
           : selected
-            ? "bg-sunken text-ink"
-            : "text-muted hover:bg-sunken hover:text-ink",
+            ? "bg-hover text-ink font-medium"
+            : "text-ink hover:bg-hover",
         className,
       )}
       {...props}
     >
-      {Icon && <Icon className="size-4 shrink-0" />}
+      {Icon && <Icon className="size-4 shrink-0 text-faint" />}
       <span className="truncate flex-1">{children}</span>
       {trailing}
     </button>
@@ -155,5 +153,5 @@ export function MenuItem({
 }
 
 export function MenuSeparator() {
-  return <div className="my-1.5 h-px bg-line-soft" />;
+  return <div className="my-1 h-px bg-line" />;
 }

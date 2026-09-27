@@ -14,7 +14,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import Logo, { LogoMark } from "./Logo";
 import Menu, { MenuItem } from "./ui/Menu";
 import Skeleton from "./ui/Skeleton";
 import { useConfirm } from "./ui/confirm-context";
@@ -22,41 +21,54 @@ import { deleteRoleById, getAllRoles } from "../services/api";
 import { ROLES_CHANGED } from "../lib/session";
 import { cn } from "../lib/cn";
 
-const PRIMARY = [{ to: "/", label: "Overview", icon: Home, end: true }];
-
 const WORKPLACE = [
   { to: "/candidates", label: "Talent pool", icon: Users },
   { to: "/metrics", label: "Insights", icon: BarChart3 },
-  { to: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Navigation lives on the canvas, so the selected item is a raised white chip
-// rather than a darker fill: it reads as the sheet the content sits on.
 function navClasses({ isActive }, rail) {
   return cn(
-    "group/link relative flex items-center h-9 rounded-sm text-[13.5px] font-medium",
-    "transition-colors duration-120 ease-out-soft",
-    rail ? "justify-center px-0 w-9 mx-auto" : "gap-2.5 px-2.5",
+    "flex items-center h-8.5 rounded-sm text-[13.5px]",
+    rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5",
     isActive
-      ? "bg-surface text-ink shadow-xs"
-      : "text-muted hover:bg-surface/70 hover:text-ink",
+      ? "bg-accent-soft text-accent font-medium"
+      : "text-muted hover:bg-hover hover:text-ink",
   );
 }
 
-export default function Sidebar({
-  collapsed,
-  onToggleCollapsed,
-  onClose,
-  variant,
-}) {
+function NavItem({ to, label, icon: Icon, end, rail, onNavigate }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onNavigate}
+      title={rail ? label : undefined}
+      className={(state) => navClasses(state, rail)}
+    >
+      <Icon className="size-4 shrink-0" />
+      {!rail && <span className="truncate">{label}</span>}
+    </NavLink>
+  );
+}
+
+function GroupLabel({ children, action }) {
+  return (
+    <div className="flex items-center justify-between h-7 px-2.5 mt-4 mb-0.5">
+      <p className="t-label">{children}</p>
+      {action}
+    </div>
+  );
+}
+
+export default function Sidebar({ collapsed, onToggleCollapsed, onClose, variant }) {
   const [roles, setRoles] = useState([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const confirm = useConfirm();
 
-  const isRail = collapsed && variant === "desktop";
-  const closeOnNav = variant === "mobile" ? onClose : undefined;
+  const rail = collapsed && variant === "desktop";
+  const onNavigate = variant === "mobile" ? onClose : undefined;
 
   const loadRoles = useCallback(async () => {
     try {
@@ -95,116 +107,86 @@ export default function Sidebar({
     }
   };
 
-  const pad = isRail ? "px-3" : "px-3.5";
-
   return (
-    <div className="flex flex-col h-full">
-      <div
-        className={cn(
-          "flex items-center h-15 shrink-0",
-          isRail ? "justify-center px-0" : cn("justify-between", pad),
-        )}
-      >
-        {isRail ? <LogoMark /> : <Logo />}
-        {variant === "mobile" && (
+    <div className="flex flex-col h-full bg-surface">
+      {variant === "mobile" && (
+        <div className="flex items-center justify-between h-12 px-4 border-b border-line shrink-0">
+          <span className="t-sm font-semibold">Navigation</span>
           <button
             onClick={onClose}
             aria-label="Close navigation"
-            className="size-8 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-surface transition-colors"
+            className="size-8 rounded-sm flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
           >
             <X className="size-4.5" />
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className={cn("pb-3", pad)}>
-        <NavLink
-          to="/new"
-          onClick={closeOnNav}
-          title={isRail ? "New role" : undefined}
-          className={cn(
-            "flex items-center h-9.5 rounded-md bg-accent text-on-accent shadow-xs",
-            "text-[13.5px] font-medium transition-[background-color,transform] duration-150 ease-out-soft",
-            "hover:bg-accent-hover active:scale-[0.985]",
-            isRail ? "justify-center w-9 mx-auto" : "gap-2 px-3",
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-2.5 py-3">
+        <nav className="flex flex-col gap-0.5">
+          <NavItem to="/" end label="Overview" icon={Home} rail={rail} onNavigate={onNavigate} />
+          {variant === "mobile" && (
+            <NavItem to="/new" label="New role" icon={Plus} onNavigate={onNavigate} />
           )}
-        >
-          <Plus className="size-4 shrink-0" />
-          {!isRail && "New role"}
-        </NavLink>
-      </div>
+        </nav>
 
-      <nav className={cn("flex flex-col gap-1 pb-4", pad)}>
-        {PRIMARY.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            onClick={closeOnNav}
-            title={isRail ? label : undefined}
-            className={(state) => navClasses(state, isRail)}
+        {rail ? (
+          <div className="h-px bg-line my-3 mx-2" />
+        ) : (
+          <GroupLabel
+            action={
+              <NavLink
+                to="/new"
+                onClick={onNavigate}
+                title="New role"
+                aria-label="New role"
+                className="size-6 -mr-1 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
+              >
+                <Plus className="size-3.5" />
+              </NavLink>
+            }
           >
-            <Icon className="size-4 shrink-0 text-faint" />
-            {!isRail && label}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className={cn("flex-1 overflow-y-auto custom-scrollbar pb-4", pad)}>
-        {!isRail && (
-          <p className="px-2.5 pb-2 text-[11.5px] font-medium text-faint tracking-[0.04em]">
             Roles
-          </p>
+          </GroupLabel>
         )}
 
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-0.5">
           {loadingRoles ? (
             Array.from({ length: 3 }).map((_, index) => (
-              <Skeleton
-                key={index}
-                className={cn("h-9 rounded-sm", isRail && "w-9 mx-auto")}
-              />
+              <Skeleton key={index} className={cn("h-8.5 my-px", rail && "w-9 mx-auto")} />
             ))
           ) : roles.length === 0 ? (
-            !isRail && (
-              <p className="px-2.5 py-2 t-xs text-ghost">
-                Roles you create appear here.
-              </p>
+            !rail && (
+              <p className="px-2.5 py-1.5 t-xs text-faint">No roles yet.</p>
             )
           ) : (
             roles.map((role) => (
               <div key={role.id} className="relative group">
                 <NavLink
                   to={`/role/${role.id}`}
-                  onClick={closeOnNav}
-                  title={isRail ? role.title : undefined}
-                  className={(state) => navClasses(state, isRail)}
+                  onClick={onNavigate}
+                  title={rail ? role.title : undefined}
+                  className={(state) => navClasses(state, rail)}
                 >
-                  <FileText className="size-4 shrink-0 text-faint" />
-                  {!isRail && (
-                    <span className="truncate pr-5">{role.title}</span>
-                  )}
+                  <FileText className="size-4 shrink-0" />
+                  {!rail && <span className="truncate pr-6">{role.title}</span>}
                 </NavLink>
 
-                {!isRail && (
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                {!rail && (
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
                     <Menu
                       width={176}
                       trigger={(props) => (
                         <button
                           {...props}
                           aria-label={`Options for ${role.title}`}
-                          className="size-6.5 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-line transition-colors"
+                          className="size-6.5 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-line"
                         >
                           <MoreHorizontal className="size-4" />
                         </button>
                       )}
                     >
-                      <MenuItem
-                        icon={Trash2}
-                        danger
-                        onClick={() => handleDeleteRole(role)}
-                      >
+                      <MenuItem icon={Trash2} danger onClick={() => handleDeleteRole(role)}>
                         Delete role
                       </MenuItem>
                     </Menu>
@@ -214,36 +196,33 @@ export default function Sidebar({
             ))
           )}
         </nav>
-      </div>
 
-      <div className={cn("shrink-0 pt-2 pb-3", pad)}>
-        <nav className="flex flex-col gap-1">
-          {WORKPLACE.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={closeOnNav}
-              title={isRail ? label : undefined}
-              className={(state) => navClasses(state, isRail)}
-            >
-              <Icon className="size-4 shrink-0 text-faint" />
-              {!isRail && label}
-            </NavLink>
+        {rail ? (
+          <div className="h-px bg-line my-3 mx-2" />
+        ) : (
+          <GroupLabel>Workplace</GroupLabel>
+        )}
+
+        <nav className="flex flex-col gap-0.5">
+          {WORKPLACE.map((item) => (
+            <NavItem key={item.to} {...item} rail={rail} onNavigate={onNavigate} />
           ))}
         </nav>
+      </div>
 
+      <div className="shrink-0 border-t border-line px-2.5 py-2.5 flex flex-col gap-0.5">
+        <NavItem to="/settings" label="Settings" icon={Settings} rail={rail} onNavigate={onNavigate} />
         {variant === "desktop" && (
           <button
             onClick={onToggleCollapsed}
-            aria-label={isRail ? "Expand sidebar" : "Collapse sidebar"}
-            title={isRail ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
+            title={rail ? "Expand sidebar" : "Collapse sidebar"}
             className={cn(
-              "mt-1 flex items-center h-9 rounded-sm text-[13.5px] font-medium",
-              "text-faint hover:bg-surface/70 hover:text-ink transition-colors duration-120",
-              isRail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5 w-full",
+              "flex items-center h-8.5 rounded-sm text-[13.5px] text-faint hover:bg-hover hover:text-ink",
+              rail ? "justify-center w-9 mx-auto" : "gap-2.5 px-2.5",
             )}
           >
-            {isRail ? (
+            {rail ? (
               <ChevronsRight className="size-4" />
             ) : (
               <>

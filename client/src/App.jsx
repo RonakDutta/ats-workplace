@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { Compass } from "lucide-react";
 import MainLayout from "./layouts/MainLayout";
 import OverviewView from "./pages/OverviewView";
 import NewRoleView from "./pages/NewRoleView";
@@ -11,6 +10,8 @@ import SettingsView from "./pages/SettingsView";
 import MetricsView from "./pages/MetricsView";
 import AuthView from "./pages/AuthView";
 import { ConfirmProvider } from "./components/ui/ConfirmProvider";
+import PageHeader, { Page } from "./components/PageHeader";
+import { Card } from "./components/ui/Card";
 import EmptyState from "./components/ui/EmptyState";
 import Button from "./components/ui/Button";
 import { getToken } from "./lib/session";
@@ -22,17 +23,20 @@ function ProtectedRoute({ children }) {
 function NotFound() {
   const navigate = useNavigate();
   return (
-    <EmptyState
-      className="min-h-[70vh]"
-      icon={Compass}
-      title="This page does not exist"
-      description="The link may be out of date, or the role it pointed to was deleted."
-      action={
-        <Button variant="primary" onClick={() => navigate("/")}>
-          Back to overview
-        </Button>
-      }
-    />
+    <Page>
+      <PageHeader crumbs={[{ label: "Overview", to: "/" }, { label: "Not found" }]} title="Page not found" />
+      <Card>
+        <EmptyState
+          title="This page does not exist"
+          description="The link may be out of date, or the role it pointed to was deleted."
+          action={
+            <Button variant="primary" onClick={() => navigate("/")}>
+              Back to overview
+            </Button>
+          }
+        />
+      </Card>
+    </Page>
   );
 }
 
@@ -42,7 +46,7 @@ export default function App() {
       <ConfirmProvider>
         <Toaster
           position="bottom-right"
-          gutter={10}
+          gutter={8}
           toastOptions={{
             duration: 3500,
             style: {
@@ -50,10 +54,10 @@ export default function App() {
               color: "var(--ink)",
               border: "1px solid var(--line)",
               boxShadow: "var(--shadow-lg)",
-              borderRadius: "10px",
+              borderRadius: "6px",
               fontSize: "13px",
               fontWeight: 500,
-              padding: "10px 14px",
+              padding: "8px 12px",
               maxWidth: "360px",
             },
             success: { iconTheme: { primary: "var(--good)", secondary: "var(--surface)" } },

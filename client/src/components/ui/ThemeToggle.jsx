@@ -20,7 +20,7 @@ export function ThemeSegmented({ className }) {
       role="radiogroup"
       aria-label="Theme"
       className={cn(
-        "inline-flex items-center p-0.5 bg-sunken border border-line-soft rounded-sm",
+        "inline-flex items-stretch border border-line-strong rounded-sm overflow-hidden divide-x divide-line-strong",
         className,
       )}
     >
@@ -34,11 +34,10 @@ export function ThemeSegmented({ className }) {
             title={hint}
             onClick={() => setTheme(value)}
             className={cn(
-              "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-xs text-[12.5px] font-medium",
-              "transition-colors duration-150 ease-out-soft",
+              "inline-flex items-center gap-1.5 h-8.5 px-3 text-[13px] font-medium",
               active
-                ? "bg-surface text-ink shadow-xs"
-                : "text-faint hover:text-muted",
+                ? "bg-accent-soft text-accent"
+                : "bg-surface text-muted hover:bg-hover hover:text-ink",
             )}
           >
             <Icon className="size-3.5" />
@@ -64,7 +63,7 @@ export function ThemeMenu() {
           <button
             {...props}
             aria-label={`Theme, currently ${current.label}`}
-            className="size-8 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-sunken transition-colors"
+            className="size-8 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-hover"
           >
             <CurrentIcon className="size-4" />
           </button>

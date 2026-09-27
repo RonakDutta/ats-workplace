@@ -1,5 +1,4 @@
 import React, { useCallback, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import Modal from "./Modal";
 import Button from "./Button";
 import { ConfirmContext } from "./confirm-context";
@@ -37,43 +36,27 @@ export function ConfirmProvider({ children }) {
         labelledBy="confirm-title"
         describedBy={request?.description ? "confirm-description" : undefined}
       >
-        <div className="p-6">
-          <div className="flex gap-4">
-            {request?.destructive && (
-              <div className="size-9 shrink-0 rounded-sm bg-bad-soft border border-bad-line flex items-center justify-center">
-                <AlertTriangle className="size-4.5 text-bad" />
-              </div>
-            )}
-            <div className="min-w-0 pt-0.5">
-              <h2
-                id="confirm-title"
-                className="text-[15px] font-semibold text-ink"
-              >
-                {request?.title}
-              </h2>
-              {request?.description && (
-                <p
-                  id="confirm-description"
-                  className="text-[13px] text-muted mt-1.5 leading-relaxed"
-                >
-                  {request.description}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="secondary" onClick={() => settle(false)}>
-              {request?.cancelLabel}
-            </Button>
-            <Button
-              data-autofocus
-              variant={request?.destructive ? "solidDanger" : "primary"}
-              onClick={() => settle(true)}
-            >
-              {request?.confirmLabel}
-            </Button>
-          </div>
+        <div className="px-5 pt-5 pb-5">
+          <h2 id="confirm-title" className="t-heading text-ink">
+            {request?.title}
+          </h2>
+          {request?.description && (
+            <p id="confirm-description" className="t-sm text-muted mt-2">
+              {request.description}
+            </p>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 bg-sunken border-t border-line rounded-b-md">
+          <Button variant="secondary" onClick={() => settle(false)}>
+            {request?.cancelLabel}
+          </Button>
+          <Button
+            data-autofocus
+            variant={request?.destructive ? "solidDanger" : "primary"}
+            onClick={() => settle(true)}
+          >
+            {request?.confirmLabel}
+          </Button>
         </div>
       </Modal>
     </ConfirmContext.Provider>

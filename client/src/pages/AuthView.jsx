@@ -18,15 +18,15 @@ const MIN_NEW_PASSWORD = 6;
 const STEPS = [
   {
     title: "Describe the role",
-    body: "Paste the job description. Its requirements become the yardstick.",
+    body: "Paste the job description. The skills it asks for become the yardstick every resume is measured against.",
   },
   {
-    title: "Upload the batch",
-    body: "Drop in as many resumes as you have. They are read together.",
+    title: "Upload resumes",
+    body: "Add as many PDF resumes as you have. Each one is scored on its own, so one bad file never stops the batch.",
   },
   {
-    title: "Read the ranking",
-    body: "Every candidate returns a score, matched skills and missing ones.",
+    title: "Review the ranking",
+    body: "Every candidate gets a score, the required skills they cover, the ones they lack and a short written summary.",
   },
 ];
 
@@ -74,10 +74,8 @@ export default function AuthView() {
         : await signupUser(form.name, form.email, form.password);
 
       setSession(data.token, data.user);
-      toast.success(
-        isLogin ? `Welcome back, ${data.user.name}` : "Workplace ready",
-      );
-      navigate("/new");
+      toast.success(isLogin ? `Signed in as ${data.user.name}` : "Account created");
+      navigate(isLogin ? "/" : "/new");
     } catch (error) {
       toast.error(
         error.response?.data?.error ||
@@ -94,35 +92,31 @@ export default function AuthView() {
   };
 
   return (
-    // The page itself scrolls, so nothing here can be centred out of reach on a
-    // short viewport.
     <div className="min-h-dvh flex flex-col bg-canvas text-ink">
-      <header className="shrink-0 flex items-center justify-between px-5 sm:px-8 h-16">
+      <header className="shrink-0 h-12 flex items-center justify-between px-4 sm:px-6 border-b border-line bg-surface">
         <Logo />
         <ThemeMenu />
       </header>
 
-      <main className="flex-1 flex items-center justify-center px-5 sm:px-8 py-4">
-        <div className="w-full max-w-3xl">
-          <div className="text-center mb-6">
-            <h1 className="t-title text-balance">
-              {isLogin ? "Sign in to ATS Workplace" : "Create your workplace"}
-            </h1>
-            <p className="t-sm text-muted mt-2 max-w-sm mx-auto">
-              Rank a whole batch of resumes against one job description, and see
-              which required skills each candidate is missing.
-            </p>
-          </div>
+      <main className="flex-1 px-4 sm:px-6 py-10 sm:py-16">
+        <div className="mx-auto max-w-4xl grid gap-10 lg:grid-cols-[400px_minmax(0,1fr)] lg:gap-14 items-start">
+          <div className="bg-surface border border-line rounded-md">
+            <div className="px-6 pt-6 pb-2">
+              <h1 className="t-title">{isLogin ? "Sign in" : "Create an account"}</h1>
+              <p className="t-sm text-faint mt-1">
+                {isLogin
+                  ? "Use the email and password for your workplace."
+                  : "Set up a workplace to start ranking resumes."}
+              </p>
+            </div>
 
-          <div className="bg-surface border border-line rounded-xl p-6 sm:p-7 max-w-105 mx-auto">
-            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="px-6 pt-4 pb-6 space-y-4">
               {!isLogin && (
                 <Field label="Full name" htmlFor="name" error={errors.name}>
                   <Input
                     id="name"
                     name="name"
                     autoComplete="name"
-                    placeholder="Ada Lovelace"
                     value={form.name}
                     onChange={handleChange}
                     invalid={Boolean(errors.name)}
@@ -137,7 +131,6 @@ export default function AuthView() {
                   type="email"
                   inputMode="email"
                   autoComplete="email"
-                  placeholder="you@company.com"
                   value={form.email}
                   onChange={handleChange}
                   invalid={Boolean(errors.email)}
@@ -148,6 +141,7 @@ export default function AuthView() {
                 label="Password"
                 htmlFor="password"
                 error={errors.password}
+                hint={isLogin ? undefined : `At least ${MIN_NEW_PASSWORD} characters.`}
               >
                 <div className="relative">
                   <Input
@@ -155,25 +149,18 @@ export default function AuthView() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={isLogin ? "current-password" : "new-password"}
-                    placeholder={
-                      isLogin ? "Enter your password" : "Choose a password"
-                    }
                     value={form.password}
                     onChange={handleChange}
                     invalid={Boolean(errors.password)}
-                    className="pr-11"
+                    className="pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((value) => !value)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 size-8 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-sunken transition-colors"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-7 rounded-xs flex items-center justify-center text-faint hover:text-ink hover:bg-hover"
                   >
-                    {showPassword ? (
-                      <EyeOff className="size-4" />
-                    ) : (
-                      <Eye className="size-4" />
-                    )}
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
               </Field>
@@ -183,45 +170,55 @@ export default function AuthView() {
                 variant="primary"
                 size="lg"
                 loading={isSubmitting}
-                className="w-full justify-center mt-1"
+                className="w-full justify-center"
               >
-                {isLogin ? "Sign in" : "Create workplace"}
+                {isSubmitting
+                  ? isLogin
+                    ? "Signing in"
+                    : "Creating account"
+                  : isLogin
+                    ? "Sign in"
+                    : "Create account"}
               </Button>
             </form>
 
-            <p className="t-sm text-muted mt-6 text-center">
-              {isLogin ? "No workplace yet?" : "Already have a workplace?"}{" "}
-              <button
-                type="button"
-                onClick={switchMode}
-                className="link rounded-xs"
-              >
-                {isLogin ? "Create one" : "Sign in"}
+            <div className="px-6 py-3.5 border-t border-line bg-sunken rounded-b-md t-sm text-muted">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button type="button" onClick={switchMode} className="link">
+                {isLogin ? "Sign up" : "Sign in"}
               </button>
-            </p>
+            </div>
           </div>
 
-          {/* Wider than the card on purpose, so three columns have room and the
-              titles do not wrap. */}
-          <ol className="grid gap-x-8 gap-y-5 sm:grid-cols-3 mt-9">
-            {STEPS.map(({ title, body }, index) => (
-              <li key={title}>
-                <p className="t-sm font-medium">
-                  <span className="text-ghost tnum mr-2">{index + 1}</span>
-                  {title}
-                </p>
-                <p className="t-xs text-muted mt-1.5">{body}</p>
-              </li>
-            ))}
-          </ol>
+          <article className="lg:pt-2">
+            <p className="t-label">About</p>
+            <h2 className="t-title mt-1.5">Rank a batch of resumes against one job description</h2>
+            <p className="t-body text-muted mt-2 max-w-prose">
+              ATS Workplace reads each resume, compares it with the role you describe and
+              tells you who covers the requirements and what each person is missing.
+            </p>
+
+            <ol className="mt-6 border-t border-line">
+              {STEPS.map(({ title, body }, index) => (
+                <li key={title} className="grid grid-cols-[2rem_minmax(0,1fr)] py-4 border-b border-line">
+                  <span className="font-mono t-sm text-faint tnum pt-px">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <p className="t-body font-medium">{title}</p>
+                    <p className="t-sm text-muted mt-0.5">{body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+
+            <p className="t-xs text-faint mt-5 max-w-prose">
+              Your Gemini API key is stored in this browser. It is sent along with each
+              analysis request and is not saved on the server.
+            </p>
+          </article>
         </div>
       </main>
-
-      <footer className="shrink-0 px-5 sm:px-8 py-5 text-center">
-        <p className="t-xs text-ghost">
-          Your API key stays in your browser and is never sent to our servers.
-        </p>
-      </footer>
     </div>
   );
 }

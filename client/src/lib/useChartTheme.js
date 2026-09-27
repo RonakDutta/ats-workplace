@@ -8,14 +8,14 @@ import { useEffect, useState } from "react";
  */
 const ROLES = {
   accent: "--chart-accent",
-  tier1: "--chart-tier-1",
-  tier2: "--chart-tier-2",
-  tier3: "--chart-tier-3",
   grid: "--chart-grid",
   axis: "--chart-axis",
-  // Charts sit inside tonal cards, so mark separators use that surface.
-  surface: "--sunken",
+  surface: "--surface",
+  hover: "--hover",
   muted: "--muted",
+  good: "--good-mark",
+  warn: "--warn-mark",
+  bad: "--bad-mark",
 };
 
 function read() {

@@ -1,44 +1,26 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
-import {
-  ArrowDownUp,
-  ArrowLeft,
-  Check,
-  Download,
-  FileText,
-  Loader2,
-  Search,
-  Sparkles,
-  Upload,
-  Users,
-  X,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Play, Search, Upload } from "lucide-react";
+import PageHeader, { Page } from "../components/PageHeader";
+import FileQueue from "../components/FileQueue";
 import Button from "../components/ui/Button";
 import Tabs from "../components/ui/Tabs";
 import Skeleton from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import ProgressBar from "../components/ui/ProgressBar";
-import Menu, { MenuItem } from "../components/ui/Menu";
-import { Input, Textarea } from "../components/ui/Field";
-import CandidateRail from "../features/analysis/CandidateRail";
+import { Card, CardFooter, CardHeader } from "../components/ui/Card";
+import { Input, Select, Textarea } from "../components/ui/Field";
+import { ScoreMeter, VerdictTag } from "../components/ui/Score";
+import { Th, TableSkeleton } from "../components/ui/Table";
 import CandidateDetail from "../features/analysis/CandidateDetail";
-import {
-  analyzeOneCandidate,
-  deleteCandidateById,
-  getRoleById,
-  updateRoleDraft,
-} from "../services/api";
+import { deleteCandidateById, getRoleById, updateRole } from "../services/api";
 import { announceRolesChanged } from "../lib/session";
-import { asSkillList, byScoreDesc } from "../lib/score";
+import { asSkillList, averageScore, byScoreDesc } from "../lib/score";
+import { analyzeFiles } from "../lib/analysis";
 import { candidatesToCsv, downloadCsv, slugify } from "../lib/csv";
+import { plural } from "../lib/format";
+import usePdfDropzone from "../lib/usePdfDropzone";
 import { cn } from "../lib/cn";
 
 const AUTOSAVE_DELAY = 1200;
@@ -53,11 +35,12 @@ const SORTS = {
   },
 };
 
-function formatSize(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+const SAVE_LABELS = {
+  idle: "Draft",
+  saving: "Saving",
+  saved: "All changes saved",
+  dirty: "Unsaved changes",
+};
 
 export default function RoleWorkspace() {
   const { roleId } = useParams();
@@ -66,18 +49,14 @@ export default function RoleWorkspace() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [results, setResults] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const [queue, setQueue] = useState([]);
 
   const [tab, setTab] = useState("candidates");
-  // Below lg the rail and the detail are two views rather than two panes, so
-  // the list drills down instead of squeezing a 76 wide column onto a phone.
-  const [mobileDetail, setMobileDetail] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("score_desc");
 
-  // Loading is derived from which role the data on screen belongs to, rather
-  // than a flag toggled inside the effect that fetches it.
+  // Loading is derived from which role the data on screen belongs to.
   const [loadedRole, setLoadedRole] = useState(null);
   const [renderedRole, setRenderedRole] = useState(roleId);
   const [progress, setProgress] = useState(null);
@@ -90,31 +69,16 @@ export default function RoleWorkspace() {
   const isAnalyzing = progress !== null;
   const isLoading = loadedRole !== roleId;
 
-  // Per-role view state resets during render on a route change, which keeps a
-  // stale filter from hiding the new role's candidates for a frame.
+  // Per-role view state resets during render on a route change, so a stale
+  // filter never hides the new role's candidates for a frame.
   if (renderedRole !== roleId) {
     setRenderedRole(roleId);
     setQuery("");
-    setMobileDetail(false);
+    setQueue([]);
   }
 
-  const onDrop = useCallback((accepted) => {
-    setQueue((prev) => {
-      const seen = new Set(prev.map((file) => file.name));
-      return [...prev, ...accepted.filter((file) => !seen.has(file.name))];
-    });
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop,
-    accept: { "application/pdf": [".pdf"] },
-    maxSize: 10 * 1024 * 1024,
-    noClick: true,
-    noKeyboard: true,
-    onDropRejected: (rejections) =>
-      toast.error(
-        `${rejections.length} file${rejections.length === 1 ? "" : "s"} rejected. PDFs up to 10 MB only.`,
-      ),
+  const { getRootProps, getInputProps, isDragActive, open } = usePdfDropzone(setQueue, {
+    disabled: isAnalyzing,
   });
 
   useEffect(() => {
@@ -133,8 +97,7 @@ export default function RoleWorkspace() {
 
         const ranked = [...(data.candidates ?? [])].sort(byScoreDesc);
         setResults(ranked);
-        setSelectedId(ranked[0]?.id ?? null);
-        setMobileDetail(false);
+        setExpandedId(ranked[0]?.id ?? null);
         setTab(ranked.length > 0 ? "candidates" : "description");
         setSaveState("saved");
       })
@@ -163,7 +126,7 @@ export default function RoleWorkspace() {
     const timer = setTimeout(async () => {
       setSaveState("saving");
       try {
-        await updateRoleDraft(roleId, title, description);
+        await updateRole(roleId, title, description);
         savedRef.current = { title, description };
         setSaveState("saved");
         announceRolesChanged();
@@ -194,80 +157,53 @@ export default function RoleWorkspace() {
   };
 
   const handleRun = async () => {
-    const apiKey = localStorage.getItem("gemini_api_key");
-    if (!apiKey) {
+    setTab("candidates");
+    const outcome = await analyzeFiles({
+      roleId,
+      description,
+      files: [...queue],
+      onProgress: setProgress,
+      onResult: (rows, file) => {
+        // Each resume lands as soon as it is scored, so the table fills in.
+        setResults((prev) => [...rows, ...prev].sort(byScoreDesc));
+        setExpandedId((current) => current ?? rows[0].id);
+        setQueue((prev) => prev.filter((item) => item.name !== file.name));
+      },
+    });
+    setProgress(null);
+
+    if (outcome === null) {
       toast.error("Add your Gemini API key in Settings first.");
       navigate("/settings");
       return;
     }
-
-    const files = [...queue];
-    const strictness = localStorage.getItem("ml_strictness") || 50;
-    const failed = [];
-    let analysed = 0;
-
-    setProgress({ done: 0, total: files.length, label: files[0].name });
-    setTab("candidates");
-
-    for (const [index, file] of files.entries()) {
-      setProgress({ done: index, total: files.length, label: file.name });
-      try {
-        const rows = await analyzeOneCandidate(
-          description,
-          file,
-          roleId,
-          apiKey,
-          strictness,
-        );
-        if (rows.length === 0) {
-          failed.push(file.name);
-          continue;
-        }
-        analysed += rows.length;
-        // Each resume lands as soon as it is scored, so the list fills in.
-        setResults((prev) => [...rows, ...prev].sort(byScoreDesc));
-        setSelectedId((current) => current ?? rows[0].id);
-        setQueue((prev) => prev.filter((item) => item.name !== file.name));
-      } catch {
-        failed.push(file.name);
-      }
-    }
-
-    setProgress(null);
-
-    if (analysed === 0) {
+    if (outcome.analysed === 0) {
       toast.error(
         "No resumes could be analysed. Check that your API key is valid and the files are readable PDFs.",
         { duration: 6000 },
       );
       return;
     }
-    if (failed.length > 0) {
+    if (outcome.failed.length > 0) {
       toast(
-        `${analysed} analysed. ${failed.length} could not be read and are still queued.`,
+        `${outcome.analysed} analysed. ${outcome.failed.length} could not be read and are still queued.`,
         { duration: 6000 },
       );
       return;
     }
-    toast.success(`${analysed} resume${analysed === 1 ? "" : "s"} analysed`);
+    toast.success(`${plural(outcome.analysed, "resume")} analysed`);
   };
 
-  // Removal is optimistic and the request waits out an undo window, which is
-  // what makes Undo possible: nothing has been destroyed yet.
+  // Removal is optimistic and the request waits out an undo window.
   const handleDeleteCandidate = (candidate) => {
-    setResults((prev) => {
-      const next = prev.filter((item) => item.id !== candidate.id);
-      setSelectedId((current) =>
-        current === candidate.id ? (next[0]?.id ?? null) : current,
-      );
-      return next;
-    });
+    setResults((prev) => prev.filter((item) => item.id !== candidate.id));
 
+    const restore = () => setResults((prev) => [candidate, ...prev].sort(byScoreDesc));
     const commit = () => {
       pendingDeletes.current.delete(candidate.id);
       deleteCandidateById(candidate.id).catch(() => {
         toast.error(`Could not remove ${candidate.filename}`);
-        setResults((prev) => [candidate, ...prev].sort(byScoreDesc));
+        restore();
       });
     };
 
@@ -284,7 +220,7 @@ export default function RoleWorkspace() {
               if (entry) {
                 clearTimeout(entry.timer);
                 pendingDeletes.current.delete(candidate.id);
-                setResults((prev) => [candidate, ...prev].sort(byScoreDesc));
+                restore();
               }
               toast.dismiss(t.id);
             }}
@@ -299,11 +235,7 @@ export default function RoleWorkspace() {
   };
 
   const handleExport = () => {
-    const ordered = [...results].sort(byScoreDesc);
-    downloadCsv(
-      `${slugify(title)}-shortlist.csv`,
-      candidatesToCsv(ordered),
-    );
+    downloadCsv(`${slugify(title)}-shortlist.csv`, candidatesToCsv([...results].sort(byScoreDesc)));
     toast.success("Shortlist exported");
   };
 
@@ -311,8 +243,8 @@ export default function RoleWorkspace() {
     const term = query.trim().toLowerCase();
     const filtered = term
       ? results.filter((candidate) =>
-          [candidate.filename, ...asSkillList(candidate.matched_skills)].some(
-            (value) => String(value).toLowerCase().includes(term),
+          [candidate.filename, ...asSkillList(candidate.matched_skills)].some((value) =>
+            String(value).toLowerCase().includes(term),
           ),
         )
       : results;
@@ -321,144 +253,109 @@ export default function RoleWorkspace() {
 
   if (isLoading) return <WorkspaceSkeleton />;
 
-  const selected =
-    visible.find((item) => item.id === selectedId) ??
-    results.find((item) => item.id === selectedId) ??
-    visible[0];
-
-  const averageScore = results.length
-    ? Math.round(
-        results.reduce((sum, item) => sum + (Number(item.score) || 0), 0) /
-          results.length,
-      )
-    : null;
+  const average = averageScore(results);
+  const words = description.trim() ? description.trim().split(/\s+/).length : 0;
+  const runDisabledReason =
+    queue.length === 0
+      ? "Add at least one resume"
+      : !description.trim()
+        ? "Add a job description"
+        : undefined;
 
   return (
-    <div {...getRootProps()} className="h-full flex flex-col focus:outline-none">
-      <input {...getInputProps()} disabled={isAnalyzing} />
+    <div {...getRootProps()} className="focus:outline-none min-h-full">
+      <input {...getInputProps()} />
 
-      <header className="shrink-0 px-5 sm:px-8 pt-5 sm:pt-6">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-          <div className="flex-1 min-w-0">
+      <Page>
+        <PageHeader
+          crumbs={[{ label: "Overview", to: "/" }, { label: "Roles" }, { label: title || "Untitled role" }]}
+          title={
             <input
               value={title}
               onChange={editField(setTitle)}
               placeholder="Untitled role"
               aria-label="Role title"
-              className="w-full bg-transparent border-none truncate t-title text-ink -mx-2 px-2 py-0.5 rounded-sm placeholder:text-ghost placeholder:font-normal"
+              className="w-full bg-transparent t-display text-ink -mx-1.5 px-1.5 py-0.5 rounded-sm border border-transparent hover:border-line focus:border-accent focus:outline-none placeholder:text-ghost"
             />
-            <p className="flex items-center gap-2 t-xs text-faint mt-1.5">
-              <SaveIndicator state={saveState} />
+          }
+          actions={
+            <>
               {results.length > 0 && (
-                <>
-                  <span className="text-ghost">/</span>
-                  <span className="tnum">{results.length}</span> analysed
-                  {averageScore != null && (
-                    <>
-                      <span className="text-ghost">/</span>
-                      <span className="tnum">{averageScore}%</span> average
-                    </>
-                  )}
-                </>
+                <Button variant="secondary" onClick={handleExport}>
+                  <Download className="size-4" />
+                  Export CSV
+                </Button>
               )}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 -mx-0.5">
-            {results.length > 0 && (
-              <Button
-                variant="ghost"
-                onClick={handleExport}
-                title="Export shortlist as CSV"
-                aria-label="Export shortlist as CSV"
-              >
-                <Download className="size-4" />
-                <span className="hidden sm:inline">Export</span>
+              <Button variant="secondary" onClick={open} disabled={isAnalyzing}>
+                <Upload className="size-4" />
+                Add resumes
               </Button>
-            )}
-            <Button
-              variant="secondary"
-              onClick={open}
-              disabled={isAnalyzing}
-              title="Add resumes"
-              aria-label="Add resumes"
-            >
-              <Upload className="size-4" />
-              <span className="hidden sm:inline">Add resumes</span>
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleRun}
-              disabled={queue.length === 0 || !description.trim() || isAnalyzing}
-              loading={isAnalyzing}
-              title={
-                queue.length === 0
-                  ? "Add at least one resume"
-                  : !description.trim()
-                    ? "Add a job description"
-                    : undefined
-              }
-            >
-              {!isAnalyzing && <Sparkles className="size-4" />}
-              <span className={cn(isAnalyzing && "hidden sm:inline")}>
-                {isAnalyzing ? "Running" : "Run engine"}
-              </span>
-            </Button>
-          </div>
-        </div>
-
-        {isAnalyzing && (
-          <ProgressBar
-            className="mt-5"
-            done={progress.done}
-            total={progress.total}
-            label={`Analysing ${progress.label}`}
-          />
-        )}
-
-        {!isAnalyzing && queue.length > 0 && (
-          <div className="mt-4 rounded-lg bg-sunken p-2.5">
-            <div className="flex items-center justify-between px-1 pb-2">
-              <p className="t-xs font-medium text-muted">
-                <span className="tnum">{queue.length}</span> ready to analyse
-              </p>
-              <button
-                onClick={() => setQueue([])}
-                className="t-xs text-faint hover:text-ink transition-colors rounded-xs"
+              <Button
+                variant="primary"
+                onClick={handleRun}
+                disabled={Boolean(runDisabledReason)}
+                loading={isAnalyzing}
+                title={runDisabledReason}
               >
-                Clear
-              </button>
+                <Play className="size-3.5" />
+                {isAnalyzing
+                  ? `Analysing ${progress.done + 1} of ${progress.total}`
+                  : queue.length > 0
+                    ? `Analyse ${plural(queue.length, "resume")}`
+                    : "Analyse"}
+              </Button>
+            </>
+          }
+        />
+
+        <dl className="flex flex-wrap gap-x-8 gap-y-2 -mt-2 mb-5 t-sm">
+          <Meta label="Status">{SAVE_LABELS[saveState]}</Meta>
+          <Meta label="Candidates">
+            <span className="font-mono tnum">{results.length}</span>
+          </Meta>
+          <Meta label="Average score">
+            <span className="font-mono tnum">{average ?? "None"}</span>
+          </Meta>
+        </dl>
+
+        {(queue.length > 0 || isAnalyzing) && (
+          <Card className="mb-5">
+            <CardHeader
+              title={isAnalyzing ? "Analysing" : `Ready to analyse (${queue.length})`}
+              description={
+                isAnalyzing
+                  ? "Each resume appears in the table as soon as it is scored."
+                  : "These files are queued. Run the analysis to score them against the job description."
+              }
+              actions={
+                !isAnalyzing && (
+                  <Button size="sm" variant="ghost" onClick={() => setQueue([])}>
+                    Clear queue
+                  </Button>
+                )
+              }
+            />
+            <div className="px-5 pt-3 pb-5 space-y-4">
+              {isAnalyzing && (
+                <ProgressBar
+                  done={progress.done}
+                  total={progress.total}
+                  label={progress.file.name}
+                />
+              )}
+              <FileQueue
+                files={queue}
+                disabled={isAnalyzing}
+                onRemove={(file) =>
+                  setQueue((prev) => prev.filter((item) => item.name !== file.name))
+                }
+              />
             </div>
-            <ul className="flex flex-wrap gap-1.5">
-              {queue.map((file) => (
-                <li
-                  key={file.name}
-                  className="flex items-center gap-2 h-8 pl-2.5 pr-1 rounded-xs bg-surface animate-rise"
-                >
-                  <FileText className="size-3.5 text-faint shrink-0" />
-                  <span className="t-xs truncate max-w-40">{file.name}</span>
-                  <span className="t-xs text-ghost tnum">
-                    {formatSize(file.size)}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setQueue((prev) =>
-                        prev.filter((item) => item.name !== file.name),
-                      )
-                    }
-                    aria-label={`Remove ${file.name}`}
-                    className="size-6 rounded-xs flex items-center justify-center text-faint hover:text-bad hover:bg-bad-soft transition-colors"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          </Card>
         )}
 
         <Tabs
-          className="mt-5"
+          className="mb-5"
           value={tab}
           onChange={setTab}
           items={[
@@ -466,185 +363,189 @@ export default function RoleWorkspace() {
             { value: "description", label: "Job description" },
           ]}
         />
-      </header>
 
-      <div className="flex-1 min-h-0">
         {tab === "candidates" ? (
-          results.length === 0 ? (
-            <EmptyState
-              className="h-full"
-              icon={Users}
-              title="No candidates yet"
-              description="Drop resumes anywhere on this page, then run the engine to rank them against the description."
-              action={
-                <Button variant="primary" onClick={open}>
-                  <Upload className="size-4" />
-                  Add resumes
-                </Button>
-              }
-            />
-          ) : (
-            <div className="h-full flex">
-              <div
-                className={cn(
-                  "w-full lg:w-76 shrink-0 lg:border-r border-line flex-col",
-                  mobileDetail ? "hidden lg:flex" : "flex",
-                )}
-              >
-                <div className="shrink-0 flex items-center gap-1.5 px-3 py-2.5 border-b border-line">
-                  <div className="relative flex-1 min-w-0">
+          <Card>
+            {results.length === 0 ? (
+              <EmptyState
+                title="No candidates yet"
+                description="Drop PDF resumes anywhere on this page, or browse for them, then run the analysis."
+                action={
+                  <Button variant="primary" onClick={open}>
+                    <Upload className="size-4" />
+                    Add resumes
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row gap-2 px-5 py-3 border-b border-line">
+                  <div className="relative flex-1 sm:max-w-72">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-faint pointer-events-none" />
                     <Input
                       type="search"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
-                      placeholder="Filter by name or skill"
+                      placeholder="Filter by file name or skill"
                       aria-label="Filter candidates"
-                      className="h-8.5 pl-8 text-[12.5px]"
+                      className="h-8 pl-8 text-[13px]"
                     />
                   </div>
-                  <Menu
-                    width={180}
-                    trigger={(props) => (
-                      <button
-                        {...props}
-                        aria-label={`Sort: ${SORTS[sort].label}`}
-                        title={`Sort: ${SORTS[sort].label}`}
-                        className="size-8.5 shrink-0 rounded-sm flex items-center justify-center text-muted hover:text-ink hover:bg-sunken transition-colors"
-                      >
-                        <ArrowDownUp className="size-4" />
-                      </button>
-                    )}
+                  <Select
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value)}
+                    aria-label="Sort candidates"
+                    className="h-8 sm:w-44 sm:ml-auto"
                   >
                     {Object.entries(SORTS).map(([key, option]) => (
-                      <MenuItem
-                        key={key}
-                        selected={sort === key}
-                        onClick={() => setSort(key)}
-                        trailing={
-                          sort === key ? <Check className="size-3.5" /> : null
-                        }
-                      >
-                        {option.label}
-                      </MenuItem>
+                      <option key={key} value={key}>
+                        Sort: {option.label}
+                      </option>
                     ))}
-                  </Menu>
+                  </Select>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
-                  {visible.length === 0 ? (
-                    <p className="t-xs text-ghost px-3 py-6 text-center">
-                      Nothing matches "{query}".
-                    </p>
-                  ) : (
-                    <CandidateRail
-                      results={visible}
-                      selectedId={selected?.id}
-                      onSelect={(id) => {
-                        setSelectedId(id);
-                        setMobileDetail(true);
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  "flex-1 min-w-0 overflow-y-auto custom-scrollbar",
-                  mobileDetail ? "block" : "hidden lg:block",
-                )}
-              >
-                <button
-                  onClick={() => setMobileDetail(false)}
-                  className="lg:hidden flex items-center gap-1.5 t-sm font-medium text-muted hover:text-ink transition-colors px-5 pt-5 rounded-xs"
-                >
-                  <ArrowLeft className="size-4" />
-                  All candidates
-                </button>
-                {selected && (
-                  <CandidateDetail
-                    key={selected.id}
-                    candidate={selected}
+                {visible.length === 0 ? (
+                  <EmptyState title="No matches" description={`Nothing matches "${query}".`} />
+                ) : (
+                  <CandidateTable
+                    rows={visible}
+                    expandedId={expandedId}
+                    onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
                     onDelete={handleDeleteCandidate}
                   />
                 )}
-              </div>
-            </div>
-          )
+              </>
+            )}
+          </Card>
         ) : (
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className="mx-auto max-w-3xl px-5 sm:px-8 py-6 sm:py-7">
-              <label htmlFor="jd" className="t-label text-faint">
-                Job description
-              </label>
+          <Card>
+            <CardHeader
+              title="Job description"
+              description="Every resume is scored against this text. Changes save automatically."
+            />
+            <div className="px-5 pt-3 pb-5">
               <Textarea
-                bare
                 id="jd"
+                aria-label="Job description"
                 value={description}
                 onChange={editField(setDescription)}
                 disabled={isAnalyzing}
-                placeholder="Paste the job description here, including the responsibilities and the skills the role requires."
-                className="mt-4 min-h-96"
+                placeholder="Paste the job description, including the responsibilities and the skills the role requires."
+                className="min-h-96"
               />
             </div>
-          </div>
+            <CardFooter>
+              <p className="t-xs text-faint">
+                Editing the description does not re-score existing candidates.
+              </p>
+              <p className="t-xs text-faint font-mono tnum">{plural(words, "word")}</p>
+            </CardFooter>
+          </Card>
         )}
-      </div>
+      </Page>
 
       {isDragActive && (
-        <div className="absolute inset-0 z-60 flex items-center justify-center bg-accent-soft/90 backdrop-blur-sm pointer-events-none">
-          <p className="t-title">Drop resumes to add them</p>
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-scrim pointer-events-none p-6">
+          <div className="bg-surface border-2 border-dashed border-accent rounded-md px-8 py-6 text-center">
+            <p className="t-heading">Drop to add resumes</p>
+            <p className="t-sm text-faint mt-1">PDF only, up to 10 MB each.</p>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function SaveIndicator({ state }) {
-  const config = {
-    saving: { icon: Loader2, text: "Saving", spin: true },
-    saved: { icon: Check, text: "Saved" },
-    dirty: { icon: null, text: "Unsaved changes" },
-    idle: null,
-  }[state];
-
-  if (!config) return <span>Draft</span>;
-  const Icon = config.icon;
-
+function Meta({ label, children }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      {Icon && <Icon className={cn("size-3", config.spin && "animate-spin")} />}
-      {config.text}
-    </span>
+    <div className="flex items-baseline gap-2">
+      <dt className="text-faint">{label}</dt>
+      <dd className="text-ink font-medium">{children}</dd>
+    </div>
+  );
+}
+
+function CandidateTable({ rows, expandedId, onToggle, onDelete }) {
+  return (
+    <table className="w-full text-left border-collapse">
+      <thead>
+        <tr className="border-b border-line bg-sunken">
+          <Th className="w-px">#</Th>
+          <Th>Candidate</Th>
+          <Th className="w-px">Score</Th>
+          <Th className="w-px hidden sm:table-cell">Verdict</Th>
+          <Th className="w-px hidden md:table-cell">Skills</Th>
+          <th className="w-px" aria-hidden="true" />
+        </tr>
+      </thead>
+      {rows.map((candidate, index) => {
+        const open = candidate.id === expandedId;
+        const matched = asSkillList(candidate.matched_skills).length;
+        const total = matched + asSkillList(candidate.missing_skills).length;
+        return (
+          <tbody key={candidate.id} className="border-b border-line last:border-b-0">
+            <tr
+              onClick={() => onToggle(candidate.id)}
+              className={cn("cursor-pointer", open ? "bg-accent-soft" : "hover:bg-hover")}
+            >
+              <td className="pl-5 pr-2 py-3 font-mono t-sm text-faint tnum">{index + 1}</td>
+              <td className="px-3 sm:px-5 py-3 w-full max-w-0">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggle(candidate.id);
+                  }}
+                  className="block w-full text-left t-sm font-medium truncate rounded-xs"
+                >
+                  {candidate.filename}
+                </button>
+              </td>
+              <td className="px-3 sm:px-5 py-3">
+                <ScoreMeter score={candidate.score} width="w-10 sm:w-16" />
+              </td>
+              <td className="px-5 py-3 hidden sm:table-cell">
+                <VerdictTag score={candidate.score} />
+              </td>
+              <td className="px-5 py-3 hidden md:table-cell t-sm text-muted font-mono tnum whitespace-nowrap">
+                {total > 0 ? `${matched} / ${total}` : "None"}
+              </td>
+              <td className="pl-1 pr-4 py-3 text-faint">
+                {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+              </td>
+            </tr>
+            {open && (
+              <tr>
+                <td colSpan={6} className="p-0">
+                  <CandidateDetail candidate={candidate} onDelete={onDelete} />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        );
+      })}
+    </table>
   );
 }
 
 function WorkspaceSkeleton() {
   return (
-    <div className="px-6 sm:px-8 pt-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-2.5">
-          <Skeleton className="h-6 w-64 rounded-sm" />
-          <Skeleton className="h-3 w-40 rounded-sm" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-32 rounded-md" />
-          <Skeleton className="h-10 w-28 rounded-md" />
+    <Page>
+      <Skeleton className="w-40 h-3.5" />
+      <div className="flex items-end justify-between gap-4 mt-3">
+        <Skeleton className="h-8 w-72" />
+        <div className="hidden sm:flex gap-2">
+          <Skeleton className="h-8.5 w-28" />
+          <Skeleton className="h-8.5 w-28" />
         </div>
       </div>
-      <Skeleton className="h-10 w-full rounded-sm mt-6" />
-      <div className="flex gap-6 mt-6">
-        <div className="w-72 space-y-2 shrink-0">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <Skeleton key={index} className="h-13 rounded-md" />
-          ))}
-        </div>
-        <div className="flex-1 space-y-4">
-          <Skeleton className="h-14 w-full rounded-md" />
-          <Skeleton className="h-24 w-full rounded-md" />
-        </div>
-      </div>
-    </div>
+      <Skeleton className="w-64 h-3.5 mt-5" />
+      <Skeleton className="w-52 h-6 mt-8" />
+      <Card className="mt-5">
+        <TableSkeleton />
+      </Card>
+    </Page>
   );
 }

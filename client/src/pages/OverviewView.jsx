@@ -1,26 +1,29 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import PageHeader, { Page } from "../components/PageHeader";
 import Button from "../components/ui/Button";
-import Skeleton from "../components/ui/Skeleton";
+import { Card, CardHeader } from "../components/ui/Card";
 import EmptyState from "../components/ui/EmptyState";
-import { TONE_CLASSES, asSkillList, tierFor } from "../lib/score";
+import Skeleton from "../components/ui/Skeleton";
+import { Input } from "../components/ui/Field";
+import { ScoreMeter } from "../components/ui/Score";
+import { TableSkeleton, Th } from "../components/ui/Table";
+import { averageScore, byScoreDesc } from "../lib/score";
+import { formatDate } from "../lib/format";
+import { cn } from "../lib/cn";
 import { fetchAllCandidates, getAllRoles } from "../services/api";
 import { getUser } from "../lib/session";
-import { cn } from "../lib/cn";
 
 /**
- * Landing on an empty editor told you nothing. This does: what is open, how
- * much has been analysed and where each role stands.
- *
  * Per-role figures are derived on the client by joining candidates to roles on
- * title, since the roles endpoint returns no counts and this needs no server
- * change.
+ * title, since the roles endpoint returns no counts.
  */
 export default function OverviewView() {
   const [roles, setRoles] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const user = getUser();
 
@@ -34,184 +37,168 @@ export default function OverviewView() {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const summary = useMemo(() => {
+  const rows = useMemo(() => {
     const byRole = new Map();
     for (const candidate of candidates) {
-      const key = candidate.role_title;
-      if (!byRole.has(key)) byRole.set(key, []);
-      byRole.get(key).push(candidate);
+      if (!byRole.has(candidate.role_title)) byRole.set(candidate.role_title, []);
+      byRole.get(candidate.role_title).push(candidate);
     }
-
-    const scores = candidates.map((c) => Number(c.score) || 0);
-    const strong = scores.filter((score) => score >= 80).length;
-
-    return {
-      byRole,
-      total: candidates.length,
-      strong,
-      average: scores.length
-        ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-        : 0,
-    };
-  }, [candidates]);
-
-  if (isLoading) return <OverviewSkeleton />;
+    const term = query.trim().toLowerCase();
+    return roles
+      .filter((role) => !term || role.title.toLowerCase().includes(term))
+      .map((role) => {
+        const list = byRole.get(role.title) ?? [];
+        return {
+          role,
+          count: list.length,
+          average: averageScore(list),
+          top: [...list].sort(byScoreDesc)[0],
+        };
+      });
+  }, [roles, candidates, query]);
 
   const firstName = user?.name?.trim().split(/\s+/)[0];
+  const strong = candidates.filter((c) => Number(c.score) >= 80).length;
+  const average = averageScore(candidates);
 
   return (
-    <div className="mx-auto max-w-5xl px-5 sm:px-8 py-7 sm:py-10">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 sm:gap-6">
-        <div className="min-w-0">
-          <h1 className="t-display text-balance">
-            {firstName ? `Hello, ${firstName}` : "Overview"}
-          </h1>
-          <p className="t-body text-muted mt-2">
-            {roles.length === 0
-              ? "Start by describing a role, then drop in the resumes you want ranked."
-              : `${roles.length} open role${roles.length === 1 ? "" : "s"} in your workplace.`}
-          </p>
-        </div>
-        <Button
-          variant="primary"
-          onClick={() => navigate("/new")}
-          className="self-start shrink-0"
-        >
-          <Plus className="size-4" />
-          New role
-        </Button>
-      </div>
-
-      {summary.total > 0 && (
-        <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-7 sm:mt-8">
-          <Stat label="Resumes analysed" value={summary.total} />
-          <Stat label="Average match" value={summary.average} unit="%" />
-          <Stat label="Strong matches" value={summary.strong} />
-        </div>
-      )}
-
-      <section className="mt-9">
-        <h2 className="t-label text-faint mb-3">Roles</h2>
-
-        {roles.length === 0 ? (
-          <div className="rounded-lg bg-sunken">
-            <EmptyState
-              icon={Plus}
-              title="No roles yet"
-              description="A role holds one job description and every resume scored against it."
-              action={
-                <Button variant="primary" onClick={() => navigate("/new")}>
-                  Create your first role
-                </Button>
-              }
-            />
+    <Page>
+      <PageHeader
+        title={firstName ? `${firstName}'s workplace` : "Overview"}
+        description="Open roles and how the resumes analysed against them are scoring."
+        actions={
+          // The top bar carries this action from the sm breakpoint up.
+          <div className="sm:hidden">
+            <Button variant="primary" onClick={() => navigate("/new")}>
+              <Plus className="size-4" />
+              New role
+            </Button>
           </div>
+        }
+      />
+
+      <Card className="grid grid-cols-2 md:grid-cols-4 divide-x divide-line">
+        <Stat label="Roles" value={isLoading ? null : roles.length} />
+        <Stat label="Resumes analysed" value={isLoading ? null : candidates.length} />
+        <Stat
+          label="Average match"
+          value={isLoading ? null : average ?? "None"}
+          unit={average != null ? "%" : undefined}
+          className="border-t md:border-t-0 border-line"
+        />
+        <Stat
+          label="Strong matches"
+          value={isLoading ? null : strong}
+          className="border-t md:border-t-0 border-line"
+        />
+      </Card>
+
+      <Card className="mt-5">
+        <CardHeader
+          divided
+          title="Roles"
+          description="Each role holds one job description and every resume scored against it."
+          actions={
+            roles.length > 0 && (
+              <div className="relative w-full sm:w-60">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-faint pointer-events-none" />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Filter roles"
+                  aria-label="Filter roles"
+                  className="h-8 pl-8 text-[13px]"
+                />
+              </div>
+            )
+          }
+        />
+
+        {isLoading ? (
+          <TableSkeleton />
+        ) : roles.length === 0 ? (
+          <EmptyState
+            title="No roles yet"
+            description="Create a role, paste its job description and add resumes to rank them."
+            action={
+              <Button variant="primary" onClick={() => navigate("/new")}>
+                Create a role
+              </Button>
+            }
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState title="No matching roles" description={`Nothing matches "${query}".`} />
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {roles.map((role) => (
-              <RoleCard
-                key={role.id}
-                role={role}
-                candidates={summary.byRole.get(role.title) ?? []}
-              />
-            ))}
-          </ul>
+          <RolesTable rows={rows} />
         )}
-      </section>
-    </div>
+      </Card>
+    </Page>
   );
 }
 
-function Stat({ label, value, unit }) {
+function Stat({ label, value, unit, className }) {
   return (
-    <div className="rounded-lg bg-sunken px-3.5 sm:px-5 py-3.5 sm:py-4">
-      <p className="t-xs text-faint">{label}</p>
-      <p className="text-[22px] sm:text-[26px] font-semibold leading-none mt-2 sm:mt-2.5 tracking-[-0.026em]">
-        {value}
-        {unit && <span className="text-[14px] sm:text-[16px] text-faint ml-0.5">{unit}</span>}
-      </p>
-    </div>
-  );
-}
-
-function RoleCard({ role, candidates }) {
-  const top = [...candidates].sort(
-    (a, b) => (Number(b.score) || 0) - (Number(a.score) || 0),
-  )[0];
-  const tier = top ? tierFor(top.score) : null;
-
-  return (
-    <li>
-      <Link
-        to={`/role/${role.id}`}
-        className={cn(
-          "group block h-full rounded-lg bg-sunken p-5",
-          "transition-colors duration-150 ease-out-soft hover:bg-line-soft",
-        )}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="t-body font-medium truncate">{role.title}</h3>
-          <ArrowUpRight className="size-4 text-ghost shrink-0 transition-colors group-hover:text-muted" />
-        </div>
-
-        <p className="t-xs text-faint mt-1.5 tnum">
-          {candidates.length === 0
-            ? "Nothing analysed yet"
-            : `${candidates.length} analysed`}
+    <div className={cn("px-5 py-4", className)}>
+      <p className="t-sm text-faint">{label}</p>
+      {value == null ? (
+        <Skeleton className="h-7 w-14 mt-1.5" />
+      ) : (
+        <p className="text-[24px] font-semibold leading-tight mt-1 tnum tracking-[-0.02em]">
+          {value}
+          {unit && <span className="text-[15px] text-faint font-normal ml-0.5">{unit}</span>}
         </p>
-
-        {top && (
-          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-line">
-            <span
-              className={cn(
-                "size-1.5 rounded-full shrink-0",
-                TONE_CLASSES[tier.tone].dot,
-              )}
-              aria-hidden="true"
-            />
-            <span className="t-xs text-muted truncate flex-1 min-w-0">
-              Top: {top.filename}
-            </span>
-            <span className="t-xs font-semibold tnum shrink-0">
-              {top.score}%
-            </span>
-          </div>
-        )}
-
-        {top && asSkillList(top.matched_skills).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {asSkillList(top.matched_skills)
-              .slice(0, 3)
-              .map((skill) => (
-                <span
-                  key={skill}
-                  className="inline-flex items-center h-6 px-2 rounded-xs bg-surface t-xs text-muted"
-                >
-                  {skill}
-                </span>
-              ))}
-          </div>
-        )}
-      </Link>
-    </li>
+      )}
+    </div>
   );
 }
 
-function OverviewSkeleton() {
+function RolesTable({ rows }) {
   return (
-    <div className="mx-auto max-w-5xl px-5 sm:px-8 py-7 sm:py-10">
-      <Skeleton className="h-9 w-56 rounded-md" />
-      <Skeleton className="h-4 w-80 rounded-sm mt-4" />
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mt-7 sm:mt-8">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-22 rounded-lg" />
-        ))}
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 mt-9">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-36 rounded-lg" />
-        ))}
-      </div>
+    <div className="overflow-x-auto custom-scrollbar">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="border-b border-line bg-sunken">
+            <Th>Role</Th>
+            <Th className="hidden sm:table-cell">Created</Th>
+            <Th className="text-right">Analysed</Th>
+            <Th className="hidden md:table-cell">Average</Th>
+            <Th className="hidden lg:table-cell">Top candidate</Th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {rows.map(({ role, count, average, top }) => (
+            <tr key={role.id} className="hover:bg-hover">
+              <td className="px-5 py-3 max-w-72">
+                <Link to={`/role/${role.id}`} className="link block truncate">
+                  {role.title}
+                </Link>
+              </td>
+              <td className="px-5 py-3 t-sm text-faint whitespace-nowrap hidden sm:table-cell">
+                {formatDate(role.created_at)}
+              </td>
+              <td className="px-5 py-3 t-sm text-right font-mono tnum">{count}</td>
+              <td className="px-5 py-3 hidden md:table-cell">
+                {average == null ? (
+                  <span className="t-sm text-ghost">Not run</span>
+                ) : (
+                  <ScoreMeter score={average} />
+                )}
+              </td>
+              <td className="px-5 py-3 hidden lg:table-cell max-w-64">
+                {top ? (
+                  <span className="t-sm text-muted block truncate">
+                    {top.filename}{" "}
+                    <span className="text-faint font-mono tnum">({top.score})</span>
+                  </span>
+                ) : (
+                  <span className="t-sm text-ghost">None</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
