@@ -13,7 +13,6 @@ import { authenticateToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Validate token first
 router.use(authenticateToken);
 
 router.post("/", createRole);

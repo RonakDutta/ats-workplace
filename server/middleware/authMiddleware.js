@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Format: "Bearer <token>"
+  const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
     return res.status(401).json({ error: "Access denied. Please log in." });
@@ -18,7 +18,6 @@ export const authenticateToken = (req, res, next) => {
       return res.status(403).json({ error: "Invalid or expired token." });
     }
 
-    // Attach the user's ID to the request
     req.user = decodedUser;
     next();
   });

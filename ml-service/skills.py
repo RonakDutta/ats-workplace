@@ -1,19 +1,9 @@
-"""Skill catalogue and extraction.
-
-Skills are found with a spaCy PhraseMatcher over a blank English tokenizer.
-Nothing here needs a trained pipeline: the old approach ran the full
-en_core_web_sm tagger, parser and NER over every resume only to read back the
-entity ruler's matches.
-"""
-
 import spacy
 from spacy.matcher import PhraseMatcher
+from spacy.tokens import Span
 from spacy.util import filter_spans
 
-# Matched case-insensitively. Keys are what appears in the text, values are the
-# canonical name shown to the user.
-SKILL_ALIASES = {
-    # Frontend
+FRONTEND = {
     "react": "React", "react.js": "React", "reactjs": "React",
     "vue": "Vue.js", "vue.js": "Vue.js", "vuejs": "Vue.js",
     "angular": "Angular", "angularjs": "Angular", "angular.js": "Angular",
@@ -28,8 +18,9 @@ SKILL_ALIASES = {
     "jquery": "jQuery",
     "webpack": "Webpack", "vite": "Vite",
     "redux": "Redux",
+}
 
-    # Languages
+LANGUAGES = {
     "js": "JavaScript", "javascript": "JavaScript",
     "ts": "TypeScript", "typescript": "TypeScript",
     "python": "Python", "python3": "Python",
@@ -46,8 +37,9 @@ SKILL_ALIASES = {
     "perl": "Perl",
     "bash": "Bash", "shell scripting": "Bash",
     "dart": "Dart",
+}
 
-    # Backend and frameworks
+BACKEND = {
     "node.js": "Node.js", "nodejs": "Node.js",
     "express.js": "Express.js", "expressjs": "Express.js",
     "django": "Django",
@@ -61,8 +53,9 @@ SKILL_ALIASES = {
     "graphql": "GraphQL",
     "rest api": "REST APIs", "rest apis": "REST APIs", "restful": "REST APIs",
     "grpc": "gRPC",
+}
 
-    # Databases
+DATABASES = {
     "postgres": "PostgreSQL", "postgresql": "PostgreSQL",
     "mysql": "MySQL",
     "sqlite": "SQLite",
@@ -77,8 +70,9 @@ SKILL_ALIASES = {
     "neo4j": "Neo4j",
     "sql": "SQL",
     "nosql": "NoSQL",
+}
 
-    # Cloud and DevOps
+CLOUD_AND_DEVOPS = {
     "aws": "AWS", "amazon web services": "AWS",
     "gcp": "GCP", "google cloud": "GCP", "google cloud platform": "GCP",
     "azure": "Azure", "microsoft azure": "Azure",
@@ -93,8 +87,9 @@ SKILL_ALIASES = {
     "nginx": "Nginx",
     "linux": "Linux",
     "ci/cd": "CI/CD", "ci cd": "CI/CD",
+}
 
-    # ML and AI
+ML_AND_AI = {
     "machine learning": "Machine Learning",
     "deep learning": "Deep Learning",
     "artificial intelligence": "Artificial Intelligence",
@@ -120,16 +115,18 @@ SKILL_ALIASES = {
     "hadoop": "Hadoop",
     "mlflow": "MLflow",
     "dvc": "DVC",
+}
 
-    # Data and analytics
+DATA_AND_ANALYTICS = {
     "powerbi": "Power BI", "power bi": "Power BI",
     "tableau": "Tableau",
     "looker": "Looker",
     "dbt": "dbt",
     "airflow": "Apache Airflow", "apache airflow": "Apache Airflow",
     "kafka": "Apache Kafka", "apache kafka": "Apache Kafka",
+}
 
-    # Tools and practices
+TOOLS = {
     "git": "Git",
     "github": "GitHub",
     "gitlab": "GitLab",
@@ -145,20 +142,28 @@ SKILL_ALIASES = {
     "jest": "Jest",
     "cypress": "Cypress",
     "playwright": "Playwright",
+}
 
-    # Mobile
+MOBILE = {
     "react native": "React Native",
     "flutter": "Flutter",
     "android": "Android",
     "ios": "iOS",
 }
 
-# Matched with exact casing. These spellings are ordinary English words or
-# common abbreviations in lower case ("go to market", "the rest", "excel at",
-# "at the helm"), so only the capitalised form counts as the skill. Aliases
-# that were too ambiguous even with casing ("cv", "cs", "rn", "next", "np")
-# are left out.
-CASE_SENSITIVE_ALIASES = {
+SKILLS = {
+    **FRONTEND,
+    **LANGUAGES,
+    **BACKEND,
+    **DATABASES,
+    **CLOUD_AND_DEVOPS,
+    **ML_AND_AI,
+    **DATA_AND_ANALYTICS,
+    **TOOLS,
+    **MOBILE,
+}
+
+EXACT_CASE_SKILLS = {
     "Go": "Go",
     "R": "R",
     "C": "C",
@@ -178,33 +183,19 @@ CASE_SENSITIVE_ALIASES = {
     "PySpark": "Apache Spark",
 }
 
+nlp = spacy.blank("en")
 
-class SkillExtractor:
-    def __init__(self):
-        self.nlp = spacy.blank("en")
-        self.canonical = {}
+any_case_matcher = PhraseMatcher(nlp.vocab, attr="LOWER")
+for word, skill in SKILLS.items():
+    any_case_matcher.add(skill, [nlp.make_doc(word)])
 
-        self.insensitive = PhraseMatcher(self.nlp.vocab, attr="LOWER")
-        self.sensitive = PhraseMatcher(self.nlp.vocab, attr="ORTH")
+exact_case_matcher = PhraseMatcher(nlp.vocab, attr="ORTH")
+for word, skill in EXACT_CASE_SKILLS.items():
+    exact_case_matcher.add(skill, [nlp.make_doc(word)])
 
-        for matcher, aliases in (
-            (self.insensitive, SKILL_ALIASES),
-            (self.sensitive, CASE_SENSITIVE_ALIASES),
-        ):
-            for alias, name in aliases.items():
-                key = f"SKILL::{name}"
-                self.canonical[self.nlp.vocab.strings.add(key)] = name
-                matcher.add(key, [self.nlp.make_doc(alias)])
 
-    def extract(self, text: str) -> set[str]:
-        doc = self.nlp.make_doc(text)
-        matches = self.insensitive(doc) + self.sensitive(doc)
-        spans = [doc[start:end] for _, start, end in matches]
-        labels = {(start, end): match_id for match_id, start, end in matches}
-
-        # Longest match wins, so "React Native" is not also read as "React"
-        # and "Spring Boot" is not read twice.
-        return {
-            self.canonical[labels[(span.start, span.end)]]
-            for span in filter_spans(spans)
-        }
+def find_skills(text):
+    doc = nlp.make_doc(text)
+    matches = any_case_matcher(doc) + exact_case_matcher(doc)
+    spans = [Span(doc, start, end, label=skill) for skill, start, end in matches]
+    return {span.label_ for span in filter_spans(spans)}

@@ -16,7 +16,6 @@ export const createRole = async (req, res) => {
   }
 };
 
-// Update an existing job role
 export const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -55,7 +54,6 @@ export const getRoleById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Fetch the Job Description
     const roleResult = await pool.query("SELECT * FROM roles WHERE id = $1", [
       id,
     ]);
@@ -64,13 +62,11 @@ export const getRoleById = async (req, res) => {
       return res.status(404).json({ error: "Role not found." });
     }
 
-    // 2. Fetch all candidates linked to this role, ordered by highest score
     const candidatesResult = await pool.query(
       "SELECT * FROM candidates WHERE role_id = $1 ORDER BY score DESC",
       [id],
     );
 
-    // 3. Package it together nicely for React
     const masterPayload = {
       role: roleResult.rows[0],
       candidates: candidatesResult.rows,
@@ -83,7 +79,6 @@ export const getRoleById = async (req, res) => {
   }
 };
 
-// Get ALL candidates across ALL roles
 export const getAllCandidates = async (req, res) => {
   try {
     const query = `
@@ -101,7 +96,6 @@ export const getAllCandidates = async (req, res) => {
   }
 };
 
-// Delete a Role (This automatically deletes linked candidates due to CASCADE)
 export const deleteRole = async (req, res) => {
   try {
     const { id } = req.params;
@@ -120,7 +114,6 @@ export const deleteRole = async (req, res) => {
   }
 };
 
-// Delete a specific Candidate
 export const deleteCandidate = async (req, res) => {
   try {
     const { id } = req.params;
@@ -139,13 +132,10 @@ export const deleteCandidate = async (req, res) => {
   }
 };
 
-// Metrics
-// Get System Metrics for the Analytics Dashboard (Secured to Logged-in User)
 export const getSystemMetrics = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1. Top-Level KPIs (Filtered by user_id)
     const kpiQuery = `
       SELECT 
         (SELECT COUNT(*) FROM candidates c JOIN roles r ON c.role_id = r.id WHERE r.user_id = $1) as total_candidates,
@@ -154,7 +144,6 @@ export const getSystemMetrics = async (req, res) => {
     `;
     const kpiResult = await pool.query(kpiQuery, [userId]);
 
-    // 2. The Skill Gap (Filtered by user_id)
     const skillsQuery = `
       SELECT skill, COUNT(*) as count
       FROM candidates c
@@ -167,7 +156,6 @@ export const getSystemMetrics = async (req, res) => {
     `;
     const skillsResult = await pool.query(skillsQuery, [userId]);
 
-    // 3. Talent Distribution (Filtered by user_id)
     const distQuery = `
       SELECT 
         SUM(CASE WHEN c.score >= 80 THEN 1 ELSE 0 END) as top_tier,
@@ -179,7 +167,6 @@ export const getSystemMetrics = async (req, res) => {
     `;
     const distResult = await pool.query(distQuery, [userId]);
 
-    // 4. Processing Volume (Filtered by user_id)
     const volumeQuery = `
       SELECT TO_CHAR(c.created_at, 'Mon DD') as date, COUNT(*) as count
       FROM candidates c
@@ -190,7 +177,6 @@ export const getSystemMetrics = async (req, res) => {
     `;
     const volumeResult = await pool.query(volumeQuery, [userId]);
 
-    // Send the isolated payload back to React
     res.status(200).json({
       kpis: kpiResult.rows[0],
       skillGap: skillsResult.rows,
